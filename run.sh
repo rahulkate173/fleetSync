@@ -11,8 +11,20 @@ cd "$SCRIPT_DIR"
 [ -f .env ] && export $(grep -v '^#' .env | xargs)
 
 run_server() {
+  echo "Stopping any existing server on port 8000..."
+  
+  # Kill any process using port 8000
+  if lsof -ti:8000 > /dev/null 2>&1; then
+    kill -9 $(lsof -ti:8000)
+    echo "Old server stopped."
+  fi
+
   echo "Starting fleetSync server..."
-  (cd server && pip install -q -r requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000) &
+  (
+    cd server && \
+    pip install -q -r requirements.txt && \
+    uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+  ) &
 }
 
 run_frontend() {
