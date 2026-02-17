@@ -1,0 +1,117 @@
+.shipment-page {
+  display: flex;
+  height: 100vh;
+  font-family: Arial, sans-serif;
+  background: #f4f6f8;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 220px;
+  background: #0f172a;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  gap: 15px;
+}
+
+.profile-circle {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #22c55e;
+  margin-bottom: 20px;
+}
+
+.sidebar button {
+  background: transparent;
+  border: 1px solid #334155;
+  color: white;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.sidebar button:hover,
+.sidebar .active {
+  background: #22c55e;
+  border-color: #22c55e;
+}
+
+/* Main Layout */
+.main-content {
+  flex: 1;
+  display: flex;
+  padding: 30px;
+  gap: 25px;
+}
+
+/* Map Section */
+.map-section {
+  flex: 2;
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+}
+
+.map-placeholder {
+  height: 400px;
+  background: #e2e8f0;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  margin-top: 15px;
+}
+
+/* Right Panel */
+.details-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Search Box */
+.search-box {
+  display: flex;
+  gap: 10px;
+}
+
+.search-box input {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+}
+
+.search-box button {
+  padding: 10px 15px;
+  background: #22c55e;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  color: white;
+  font-weight: bold;
+}
+
+/* Shipment Details */
+.shipment-details {
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+}
+
+.shipment-details h4 {
+  margin-bottom: 15px;
+}
+
+.shipment-details p {
+  margin-bottom: 10px;
+  font-size: 15px;
+}

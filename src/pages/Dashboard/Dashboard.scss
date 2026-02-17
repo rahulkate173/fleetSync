@@ -1,0 +1,276 @@
+// .admin-dashboard {
+//   display: flex;
+//   height: 100vh;
+//   font-family: Arial, sans-serif;
+//   background: #f4f6f8;
+// }
+
+// /* Sidebar */
+
+
+// .profile-circle {
+//   width: 60px;
+//   height: 60px;
+//   border-radius: 50%;
+//   background: #22c55e;
+//   margin-bottom: 20px;
+// }
+
+// .sidebar button {
+//   background: transparent;
+//   border: 1px solid #334155;
+//   color: white;
+//   padding: 10px;
+//   border-radius: 8px;
+//   cursor: pointer;
+//   transition: 0.3s;
+// }
+
+// .sidebar button:hover {
+//   background: #22c55e;
+//   border-color: #22c55e;
+// }
+
+// /* Main Content */
+// .main-content {
+//   flex: 1;
+//   padding: 30px;
+//   position: relative;
+//   flex-direction: column;
+// }
+
+// .main-content h2 {
+//   margin-bottom: 20px;
+// }
+
+// /* Top Section */
+// .top-section {
+//   display: flex;
+//   gap: 20px;
+// }
+
+// /* Map Card */
+// .map-card {
+//   flex: 2;
+//   background: white;
+//   padding: 20px;
+//   border-radius: 16px;
+//   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+// }
+
+// .map-placeholder {
+//   height: 300px;
+//   background: #e2e8f0;
+//   border-radius: 12px;
+//   display: flex;
+//   align-items: center;
+//   justify-content: center;
+//   color: #475569;
+//   margin-top: 10px;
+// }
+
+// /* CO2 Card */
+// .co2-card {
+//   flex: 1;
+//   background: white;
+//   padding: 20px;
+//   border-radius: 16px;
+//   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+// }
+
+// .co2-value {
+//   font-size: 28px;
+//   font-weight: bold;
+//   margin: 10px 0;
+// }
+
+// .eco-indicator {
+//   color: #22c55e;
+//   font-weight: 500;
+// }
+
+// /* AI Button */
+// .ai-button {
+//   position: absolute;
+//   bottom: 30px;
+//   right: 30px;
+//   background: #22c55e;
+//   border: none;
+//   padding: 18px 22px;
+//   border-radius: 50px;
+//   font-weight: bold;
+//   cursor: pointer;
+//   box-shadow: 0 10px 20px rgba(34, 197, 94, 0.3);
+//   transition: 0.3s;
+// }
+
+// .ai-button:hover {
+//   transform: scale(1.1);
+// }
+
+.dashboard {
+  display: flex;
+
+  background: #f5f6fa;
+  font-family: "Poppins", sans-serif;
+}
+
+// .sidebar {
+//   width: 250px;
+//   background: #ffffff;
+//   padding: 20px;
+//   border-radius: 20px;
+//   margin: 15px;
+//   display: flex;
+//   flex-direction: column;
+//   justify-content: space-between;
+
+//   .profile {
+//     margin-bottom: 20px;
+//   }
+
+//   .menu {
+//     list-style: none;
+//     padding: 0;
+
+//     li {
+//       padding: 12px;
+//       margin: 8px 0;
+//       border-radius: 10px;
+//       cursor: pointer;
+//       transition: 0.3s;
+
+//       &:hover {
+//         background: #f2f2f2;
+//       }
+//     }
+
+//     .active {
+//       background: #ff5c5c;
+//       color: white;
+//     }
+//   }
+
+//   .recent-trips {
+//     background: #ff5c5c;
+//     color: white;
+//     padding: 15px;
+//     border-radius: 15px;
+//     text-align: center;
+//   }
+// }
+
+.main {
+  flex: 1;
+  padding: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 20px;
+
+  input {
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+  }
+
+  button {
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: none;
+    background: #ff5c5c;
+    color: white;
+    cursor: pointer;
+  }
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+
+.top-section {
+  .map-card {
+    background: white;
+    padding: 20px;
+    height: 375px;
+    overflow: hidden;
+    border-radius: 20px;
+
+    .map-placeholder {
+      height: 200px;
+      background: #eee;
+      border-radius: 15px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #888;
+    }
+  }
+}
+
+.middle-section,
+.bottom-section {
+  display: flex;
+  gap: 20px;
+}
+
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 20px;
+  flex: 1;
+}
+
+.truck-capacity {
+  .truck-box {
+    .capacity-bar {
+      width: 100%;
+      height: 15px;
+      background: #eee;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 10px;
+
+      .fill {
+        width: 86%;
+        height: 100%;
+        background: #ff5c5c;
+      }
+    }
+  }
+}
+
+.efficiency {
+  background: #ff5c5c;
+  color: white;
+  text-align: center;
+
+  h1 {
+    font-size: 48px;
+  }
+}
+
+.chat {
+  .chat-box {
+    background: #f9f9f9;
+    padding: 10px;
+    border-radius: 10px;
+  }
+}
+h4{
+  color: black;
+}
+.cd{
+  display: flex;
+  gap: 1rem;
+  flex-direction: column;
+}
+// .leaflet-container{
+//   height: 330px;
+// }

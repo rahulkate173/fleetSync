@@ -1,0 +1,121 @@
+// .admin-login-container {
+//   height: 100vh;
+//   display: flex;
+//   align-items: center;
+//   justify-content: center;
+ 
+// }
+
+// .login-card {
+//   background: white;
+//   padding: 50px 40px;
+//   border-radius: 20px;
+//   width: 380px;
+//   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+//   text-align: center;
+// }
+
+// .login-card h2 {
+//   margin-bottom: 10px;
+//   font-size: 28px;
+// }
+
+// .login-card p {
+//   margin-bottom: 30px;
+//   color: #777;
+//   font-size: 14px;
+// }
+
+// .input-group {
+//   display: flex;
+//   flex-direction: column;
+//   margin-bottom: 20px;
+//   text-align: left;
+// }
+
+// .input-group label {
+//   margin-bottom: 6px;
+//   font-size: 14px;
+//   font-weight: 600;
+// }
+
+// .input-group input {
+//   padding: 12px;
+//   border-radius: 8px;
+//   border: 1px solid #ccc;
+//   outline: none;
+//   transition: 0.3s;
+// }
+
+// .input-group input:focus {
+//   border-color: #243b55;
+//   box-shadow: 0 0 5px rgba(36, 59, 85, 0.5);
+// }
+
+// .login-btn {
+//   width: 100%;
+//   padding: 12px;
+//   border: none;
+//   border-radius: 30px;
+//   background: #243b55;
+//   color: white;
+//   font-size: 16px;
+//   cursor: pointer;
+//   transition: 0.3s;
+// }
+
+// .login-btn:hover {
+//   background: #141e30;
+//   transform: scale(1.05);
+// }
+.admin-login-page {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+  padding: 20px;
+}
+
+.login-card {
+  background: white;
+  padding: 50px 40px;
+  border-radius: 20px;
+  width: 420px;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.4);
+  text-align: center;
+  animation: fadeIn 0.6s ease-in-out;
+}
+
+.login-card h2 {
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+.login-card p {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 25px;
+}
+
+.auth-container {
+  margin-top: 20px;
+}
+
+/* Redirect text */
+.redirect-text {
+  font-weight: 600;
+  color: #2c5364;
+}
+
+/* Smooth fade animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
