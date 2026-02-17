@@ -6,13 +6,13 @@ import os
 import json
 import asyncio
 from datetime import datetime
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 load_dotenv()
 
 KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 SERVER_URL = os.getenv("FLEETSYNC_SERVER_URL", "http://localhost:8000")
-TOPIC = os.getenv("KAFKA_TOPIC", "fleetsync-gps-2")
+TOPIC = os.getenv("KAFKA_TOPIC", "fleetsync-gps")
 
 
 def is_valid_gps(lat: float, lon: float, temp: float | None = None) -> bool:
@@ -68,7 +68,7 @@ async def consume_and_post():
             payload = {
                 "update_timestamp": data.get(
                     "update_timestamp",
-                    datetime.now(UTC).isoformat()
+                    datetime.now(timezone.utc).isoformat()
                 ),
                 "vehicle_id": data.get("vehicle_id", "unknown"),
                 "reference_id": data.get("reference_id"),
