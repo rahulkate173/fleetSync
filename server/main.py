@@ -254,6 +254,7 @@ async def truck_gps(data: TruckGpsInput):
 # --- INGEST: Pathway / Kafka (truck driver data) ---
 @app.post("/ingest/pathway", tags=["System"])
 async def ingest_pathway(data: PathwayUpdate, db: Session = Depends(get_db)):
+    print(f"[INGEST] Vehicle: {data.vehicle_id} | GPS: {data.gps.lat}, {data.gps.lon}")
     fleet_state[data.vehicle_id] = data.model_dump()
     if data.reference_id:
         ref_tracking[data.reference_id] = {
