@@ -66,7 +66,7 @@ const FleetHtmlMap = () => {
     const currentIds = new Set();
 
     liveVehicles.forEach((vehicle) => {
-      const lat=ve  hicle.gps.lat
+      const lat=vehicle.gps.lat
         const lng=vehicle.gps.lon
         const driver_id=vehicle.vehicle_id
         console.log(lat,lng)
