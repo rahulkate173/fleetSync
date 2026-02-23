@@ -24,6 +24,12 @@ const Analysis = () => {
   const pdfRef = useRef();
   const shipmentData = useShipmentData();
   const { stats } = useFleetStats();
+  const {
+      routeEfficiency,
+      totalFleet,
+      totalDistance,
+      totalCO2,
+    } = useFleetStats();
 
   const generatePDF = () => {
     // const doc = new jsPDF();
@@ -47,19 +53,19 @@ const Analysis = () => {
         <div className="cards">
           <div className="card">
             <h4>Route Efficiency</h4>
-            <p>{stats.routeEfficiency}%</p>
+            <p>{routeEfficiency}</p>
           </div>
           <div className="card">
             <h4>Total Fleet</h4>
-            <p>{stats.totalFleet} Vehicles</p>
+            <p>{totalFleet} Vehicles</p>
           </div>
           <div className="card">
             <h4>Total Distance</h4>
-            <p>{stats.totalDistance.toLocaleString()} km</p>
+            <p>{totalDistance} km</p>
           </div>
           <div className="card">
             <h4>Total CO₂</h4>
-            <p>{stats.totalCO2.toLocaleString()} kg</p>
+            <p>{totalCO2}</p>
           </div>
         </div>
 

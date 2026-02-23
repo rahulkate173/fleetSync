@@ -1,22 +1,45 @@
-import React, { createContext, useContext, useState } from "react";
-
+import React, { createContext, useContext, useEffect, useState } from "react";
+import axios from "axios";
+import { log } from "three";
 const FleetStatsContext = createContext();
 
 export const FleetStatsProvider = ({ children }) => {
-  const [stats, setStats] = useState({
-    routeEfficiency: 87,
-    totalFleet: 42,
-    totalDistance: 12540,
-    totalCO2: 2540,
-  });
 
-  // Update any stat by key
-  const updateStat = (key, value) => {
-    setStats((prev) => ({ ...prev, [key]: value }));
-  };
+  const [routeEfficiency, setRouteEfficiency] = useState(0);
+  const [totalFleet, setTotalFleet] = useState(42);
+  const [totalDistance, setTotalDistance] = useState(12540);
+  const [totalCO2, setTotalCO2] = useState(2540);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await axios.get("http://localhost:8000/dashboard/summary");
+        const data = res.data;
+
+        console.log("Backend Response:", data);
+
+        setRouteEfficiency(data.route_efficiency || 0);
+        setTotalFleet(data.total || 0);
+        setTotalDistance(data.total_distance || 0);
+        setTotalCO2(data.co2_total_fleet || 0);
+
+      } catch (err) {
+        console.error("Error fetching dashboard summary:", err);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   return (
-    <FleetStatsContext.Provider value={{ stats, updateStat }}>
+    <FleetStatsContext.Provider
+      value={{
+        routeEfficiency,
+        totalFleet,
+        totalDistance,
+        totalCO2,
+      }}
+    >
       {children}
     </FleetStatsContext.Provider>
   );
