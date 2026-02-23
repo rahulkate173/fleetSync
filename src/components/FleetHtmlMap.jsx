@@ -11,18 +11,21 @@ const FleetHtmlMap = () => {
     import.meta.env.VITE_API_URL || "http://localhost:8000";
 
   // ================================
-  // FETCH TRUCK DATA FROM REST API
+  // FETCH VEHICLE DATA
   // ================================
-  const fetchTruckData = async () => {
+  const fetchVehicleData = async () => {
     try {
-      const response = await fetch(`${API_URL}/truck/gps`);
+      const response = await fetch(`${API_URL}/dashboard/map/data`);
       const data = await response.json();
 
-      if (Array.isArray(data)) {
+      // If backend returns single object → convert to array
+      if (!Array.isArray(data)) {
+        setLiveVehicles([data]);
+      } else {
         setLiveVehicles(data);
       }
     } catch (error) {
-      console.error("Error fetching truck data:", error);
+      console.error("Error fetching vehicle data:", error);
     }
   };
 
@@ -40,7 +43,7 @@ const FleetHtmlMap = () => {
       if (!window.L || !mapRef.current) return;
 
       const map = window.L.map(mapRef.current).setView(
-        [18.5204, 73.8567], // Default center (Pune)
+        [18.5204, 73.8567], // Pune default
         12
       );
 
@@ -51,11 +54,8 @@ const FleetHtmlMap = () => {
 
       mapInstanceRef.current = map;
 
-      // Initial API call
-      fetchTruckData();
-
-      // Refresh every 30 seconds
-      const interval = setInterval(fetchTruckData, 30000);
+      fetchVehicleData();
+      const interval = setInterval(fetchVehicleData, 10000); // every 10 sec
 
       return () => clearInterval(interval);
     };
@@ -78,40 +78,46 @@ const FleetHtmlMap = () => {
     if (!map) return;
 
     const existingMarkers = markersRef.current;
-    const currentTruckIds = new Set();
+    const currentVehicleIds = new Set();
 
-    liveVehicles.forEach((truck) => {
-      const { truck_id, latitude, longitude, status, timestamp } = truck;
+    liveVehicles.forEach((vehicle) => {
+      const {
+        vehicle_id,
+        lat,
+        lon,
+        speed_kmh,
+        temperature,
+        reference_id,
+      } = vehicle;
 
-      if (!latitude || !longitude) return;
+      if (!lat || !lon) return;
 
-      currentTruckIds.add(truck_id);
+      currentVehicleIds.add(vehicle_id);
 
-      // If marker already exists → update position
-      if (existingMarkers[truck_id]) {
-        existingMarkers[truck_id].setLatLng([latitude, longitude]);
-        existingMarkers[truck_id].setPopupContent(`
-          <b>Truck:</b> ${truck_id}<br/>
-          <b>Status:</b> ${status}<br/>
-          <b>Updated:</b> ${new Date(timestamp).toLocaleTimeString()}
-        `);
+      const popupContent = `
+        <b>Vehicle:</b> ${vehicle_id}<br/>
+        <b>Speed:</b> ${speed_kmh} km/h<br/>
+        <b>Temperature:</b> ${temperature}°C<br/>
+        <b>Reference ID:</b> ${reference_id}
+      `;
+
+      // Update existing marker
+      if (existingMarkers[vehicle_id]) {
+        existingMarkers[vehicle_id].setLatLng([lat, lon]);
+        existingMarkers[vehicle_id].setPopupContent(popupContent);
       } else {
         // Create new marker
-        const marker = window.L.marker([latitude, longitude])
+        const marker = window.L.marker([lat, lon])
           .addTo(map)
-          .bindPopup(`
-            <b>Truck:</b> ${truck_id}<br/>
-            <b>Status:</b> ${status}<br/>
-            <b>Updated:</b> ${new Date(timestamp).toLocaleTimeString()}
-          `);
+          .bindPopup(popupContent);
 
-        existingMarkers[truck_id] = marker;
+        existingMarkers[vehicle_id] = marker;
       }
     });
 
-    // Remove trucks not in latest response
+    // Remove vehicles not in latest API response
     Object.keys(existingMarkers).forEach((id) => {
-      if (!currentTruckIds.has(id)) {
+      if (!currentVehicleIds.has(id)) {
         map.removeLayer(existingMarkers[id]);
         delete existingMarkers[id];
       }
@@ -134,8 +140,8 @@ const FleetHtmlMap = () => {
         }}
       >
         {liveVehicles.length > 0
-          ? `Live: ${liveVehicles.length} truck(s)`
-          : "Waiting for truck data..."}
+          ? `Live: ${liveVehicles.length} vehicle(s)`
+          : "Waiting for vehicle data..."}
       </div>
 
       <div style={{ width: "100%", height: "400px" }}>
