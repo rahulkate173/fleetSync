@@ -1,6 +1,4 @@
 
-
-
 import React, { useEffect, useRef } from "react";
 import "./Home.scss";
 import { Link } from "react-router-dom";
@@ -113,6 +111,9 @@ useEffect(() => {
             <Link to="/login" className="secondary-btn">
               Admin Login
             </Link>
+             <Link to="/driver" className="secondary-btn">
+              Driver Login
+            </Link>
           </div>
 
           <div className="hero-stats">
@@ -131,13 +132,9 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* <div className="hero-right"> */}
-          {/* <div className="dashboard-mockup">
-            <div className="chart"></div>
-            <div className="map"></div>
-          </div> */}
           <div className="videoDiv">
-            <video  autoPlay muted loop src="/4609535-uhd_3840_2160_24fps.mp4"></video>
+            {/* <video  autoPlay muted loop src="/4609535-uhd_3840_2160_24fps.mp4"></video> */}
+          <img className="imgworld" src="/Frame 1.png" alt="" />
           </div>
         {/* </div> */}
       </section>
