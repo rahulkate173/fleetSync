@@ -133,8 +133,8 @@ const DriverDashboard = () => {
             <h3>Live Location</h3>
             {location ? (
               <p>
-                Lat: {location.latitude.toFixed(4)} <br />
-                Lng: {location.longitude.toFixed(4)}
+                Lat: {location.latitude.toFixed(8)} <br />
+                Lng: {location.longitude.toFixed(8)}
               </p>
             ) : (
               <p>Not Active</p>
