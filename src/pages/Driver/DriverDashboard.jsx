@@ -19,15 +19,18 @@ const DriverDashboard = () => {
   // Function to send location to backend
   const sendLocationToBackend = async (coords) => {
     try {
-      await fetch("http://localhost:5000/api/location", {
+      await fetch("http://localhost:8000/truck/gps", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          latitude: coords.latitude,
-          longitude: coords.longitude,
-          timestamp: new Date(),
+          vehicle_id: '40',
+          lat: coords.latitude,
+          lon: coords.longitude,
+          speed_kmh: 50,
+          temperature: 0,
+          reference_id:'45',
         }),
       });
     } catch (err) {
@@ -53,6 +56,7 @@ const DriverDashboard = () => {
             const newCoords = pos.coords;
             setLocation(newCoords);
             sendLocationToBackend(newCoords);
+            console.log('data send')
           });
         }, 30000); // Every 30 seconds
       },
