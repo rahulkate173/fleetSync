@@ -65,6 +65,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/dashboard/map/data")
+async def get_map_data():
+    return list(fleet_state.values())
 
 # --- USER: Reference ID Tracking (4 stages) ---
 @app.get("/track/{reference_id}", tags=["User"])
@@ -265,6 +268,7 @@ async def ingest_pathway(data: PathwayUpdate, db: Session = Depends(get_db)):
     return {"status": "Live & DB Updated"}
 
 
+
 # --- Notifications (create shipment) ---
 @app.post("/notifications/create-batch", tags=["Admin"])
 def create_batch(ticket: dict, db: Session = Depends(get_db)):
@@ -285,6 +289,42 @@ def create_batch(ticket: dict, db: Session = Depends(get_db)):
     db.add(new_s)
     db.commit()
     return {"status": "Ticket Assigned to Shipment Table"}
+# --- SIMULATION LOGGER (Save moving bus to CSV every 25s) ---
+import csv
+
+CSV_FILE = "bus_coordinates.csv"
+
+class SimulationCoordinate(BaseModel):
+    vehicle_id: str
+    latitude: float
+    longitude: float
+    timestamp: str
+
+
+@app.post("/simulation/save-coordinate", tags=["Simulation"])
+def save_simulation_coordinate(data: SimulationCoordinate):
+    """
+    Receives coordinate from moving simulated bus (React)
+    and appends it to CSV file.
+    """ 
+
+    file_exists = os.path.isfile(CSV_FILE)
+
+    with open(CSV_FILE, mode="a", newline="") as file:
+        writer = csv.writer(file)
+
+        # Write header only first time
+        if not file_exists:
+            writer.writerow(["vehicle_id", "latitude", "longitude", "timestamp"])
+
+        writer.writerow([
+            data.vehicle_id,
+            data.latitude,
+            data.longitude,
+            data.timestamp
+        ])
+
+    return {"status": "coordinate saved"}
 
 
 @app.get("/settings/config", tags=["Admin"])
@@ -294,4 +334,4 @@ def get_settings():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="localhost", port=8000)

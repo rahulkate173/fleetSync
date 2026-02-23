@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 const FleetHtmlMap = () => {
@@ -7,66 +8,50 @@ const FleetHtmlMap = () => {
   const markersRef = useRef({});
   const [liveVehicles, setLiveVehicles] = useState([]);
 
-  const API_URL =
-    import.meta.env.VITE_API_URL || "http://localhost:8000";
+  const API_URL = "http://localhost:8000";
 
   // ================================
-  // FETCH VEHICLE DATA
+  // FETCH DRIVER DATA
   // ================================
-  const fetchVehicleData = async () => {
+  const fetchTruckData = async () => {
     try {
       const response = await fetch(`${API_URL}/dashboard/map/data`);
       const data = await response.json();
+      console.log("LIVE DATA:", data);
 
-      // If backend returns single object → convert to array
-      if (!Array.isArray(data)) {
-        setLiveVehicles([data]);
-      } else {
+      if (Array.isArray(data)) {
         setLiveVehicles(data);
+        console.log("Live vehicles updated:", data);
       }
     } catch (error) {
-      console.error("Error fetching vehicle data:", error);
+      console.error("Error fetching truck data:", error);
     }
   };
 
   // ======================================
-  // LOAD LEAFLET MAP (ONLY ONCE)
+  // INITIALIZE MAP (RUN ONCE)
   // ======================================
   useEffect(() => {
-    const leafletScript = document.createElement("script");
-    leafletScript.src =
-      "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-    leafletScript.async = true;
-    document.body.appendChild(leafletScript);
+    if (mapInstanceRef.current) return;
 
-    leafletScript.onload = () => {
-      if (!window.L || !mapRef.current) return;
+    const map = L.map(mapRef.current).setView(
+      [18.5204, 73.8567], // Pune default
+      12
+    );
 
-      const map = window.L.map(mapRef.current).setView(
-        [18.5204, 73.8567], // Pune default
-        12
-      );
+    L.tileLayer(
+      "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      { maxZoom: 19 }
+    ).addTo(map);
 
-      window.L.tileLayer(
-        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        { maxZoom: 19 }
-      ).addTo(map);
+    mapInstanceRef.current = map;
 
-      mapInstanceRef.current = map;
-
-      fetchVehicleData();
-      const interval = setInterval(fetchVehicleData, 10000); // every 10 sec
-
-      return () => clearInterval(interval);
-    };
+    fetchTruckData();
+    const interval = setInterval(fetchTruckData, 5000); // refresh every 5 sec
 
     return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-      }
-      try {
-        document.body.removeChild(leafletScript);
-      } catch {}
+      clearInterval(interval);
+      map.remove();
     };
   }, []);
 
@@ -78,46 +63,35 @@ const FleetHtmlMap = () => {
     if (!map) return;
 
     const existingMarkers = markersRef.current;
-    const currentVehicleIds = new Set();
+    const currentIds = new Set();
 
     liveVehicles.forEach((vehicle) => {
-      const {
-        vehicle_id,
-        lat,
-        lon,
-        speed_kmh,
-        temperature,
-        reference_id,
-      } = vehicle;
+      const lat=ve  hicle.gps.lat
+        const lng=vehicle.gps.lon
+        const driver_id=vehicle.vehicle_id
+        console.log(lat,lng)
+      
 
-      if (!lat || !lon) return;
+      if (!lat || !lng) return;
 
-      currentVehicleIds.add(vehicle_id);
+      currentIds.add(driver_id);
 
-      const popupContent = `
-        <b>Vehicle:</b> ${vehicle_id}<br/>
-        <b>Speed:</b> ${speed_kmh} km/h<br/>
-        <b>Temperature:</b> ${temperature}°C<br/>
-        <b>Reference ID:</b> ${reference_id}
-      `;
-
-      // Update existing marker
-      if (existingMarkers[vehicle_id]) {
-        existingMarkers[vehicle_id].setLatLng([lat, lon]);
-        existingMarkers[vehicle_id].setPopupContent(popupContent);
+      if (existingMarkers[driver_id]) {
+        // Update position
+        existingMarkers[driver_id].setLatLng([lat, lng]);
       } else {
-        // Create new marker
-        const marker = window.L.marker([lat, lon])
+        // Create marker
+        const marker = L.marker([lat, lng])
           .addTo(map)
-          .bindPopup(popupContent);
+          .bindPopup(`<b>Driver:</b> ${driver_id}`);
 
-        existingMarkers[vehicle_id] = marker;
+        existingMarkers[driver_id] = marker;
       }
     });
 
-    // Remove vehicles not in latest API response
+    // Remove markers that are no longer in response
     Object.keys(existingMarkers).forEach((id) => {
-      if (!currentVehicleIds.has(id)) {
+      if (!currentIds.has(id)) {
         map.removeLayer(existingMarkers[id]);
         delete existingMarkers[id];
       }
@@ -125,33 +99,172 @@ const FleetHtmlMap = () => {
   }, [liveVehicles]);
 
   return (
-    <div
-      style={{
-        width: "100%",
-        borderRadius: "10px",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          fontSize: 12,
-          marginBottom: 8,
-          color: "#666",
-        }}
-      >
+    <div style={{ width: "100%" }}>
+      <div style={{ fontSize: 12, marginBottom: 8 }}>
         {liveVehicles.length > 0
-          ? `Live: ${liveVehicles.length} vehicle(s)`
-          : "Waiting for vehicle data..."}
+          ? `Live: ${liveVehicles.length} driver(s)`
+          : "Waiting for driver data..."}
       </div>
 
-      <div style={{ width: "100%", height: "400px" }}>
-        <div
-          ref={mapRef}
-          style={{ width: "100%", height: "100%" }}
-        />
-      </div>
+      <div
+        ref={mapRef}
+        style={{ width: "100%", height: "400px" }}
+      />
     </div>
   );
 };
 
 export default FleetHtmlMap;
+// import { useEffect, useRef, useState } from "react";
+// import "leaflet/dist/leaflet.css";
+
+// const FleetHtmlMap = () => {
+//   const mapRef = useRef(null);
+//   const mapInstanceRef = useRef(null);
+//   const markersRef = useRef({});
+//   const [liveVehicles, setLiveVehicles] = useState([]);
+
+//   const API_URL =
+//     import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+//   // ================================
+//   // FETCH TRUCK DATA FROM REST API
+//   // ================================
+//   const fetchTruckData = async () => {
+//     try {
+//       const response = await fetch(`${API_URL}/dashboard/map/data`);
+//       const data = await response.json();
+//       console.log('data',data)
+//       if (Array.isArray(data)) {
+//         setLiveVehicles(data);
+//       }
+//     } catch (error) {
+//       console.error("Error fetching truck data:", error);
+//     }
+//   };
+
+//   // ======================================
+//   // LOAD LEAFLET MAP (ONLY ONCE)
+//   // ======================================
+//   useEffect(() => {
+//     const leafletScript = document.createElement("script");
+//     leafletScript.src =
+//       "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+//     leafletScript.async = true;
+//     document.body.appendChild(leafletScript);
+
+//     leafletScript.onload = () => {
+//       if (!window.L || !mapRef.current) return;
+
+//       const map = window.L.map(mapRef.current).setView(
+//         [18.5204, 73.8567], // Default center (Pune)
+//         12
+//       );
+
+//       window.L.tileLayer(
+//         "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+//         { maxZoom: 19 }
+//       ).addTo(map);
+
+//       mapInstanceRef.current = map;
+
+//       // Initial API call
+//       fetchTruckData();
+
+//       // Refresh every 30 seconds
+//       const interval = setInterval(fetchTruckData, 30000);
+
+//       return () => clearInterval(interval);
+//     };
+
+//     return () => {
+//       if (mapInstanceRef.current) {
+//         mapInstanceRef.current.remove();
+//       }
+//       try {
+//         document.body.removeChild(leafletScript);
+//       } catch {}
+//     };
+//   }, []);
+
+//   // ======================================
+//   // UPDATE MARKERS WHEN DATA CHANGES
+//   // ======================================
+//   useEffect(() => {
+//     const map = mapInstanceRef.current;
+//     if (!map) return;
+
+//     const existingMarkers = markersRef.current;
+//     const currentTruckIds = new Set();
+
+//     liveVehicles.forEach((truck) => {
+//       const { truck_id, latitude, longitude, status, timestamp } = truck;
+
+//       if (!latitude || !longitude) return;
+
+//       currentTruckIds.add(truck_id);
+
+//       // If marker already exists → update position
+//       if (existingMarkers[truck_id]) {
+//         existingMarkers[truck_id].setLatLng([latitude, longitude]);
+//         existingMarkers[truck_id].setPopupContent(`
+//           <b>Truck:</b> ${truck_id}<br/>
+//           <b>Status:</b> ${status}<br/>
+//           <b>Updated:</b> ${new Date(timestamp).toLocaleTimeString()}
+//         `);
+//       } else {
+//         // Create new marker
+//         const marker = window.L.marker([latitude, longitude])
+//           .addTo(map)
+//           .bindPopup(`
+//             <b>Truck:</b> ${truck_id}<br/>
+//             <b>Status:</b> ${status}<br/>
+//             <b>Updated:</b> ${new Date(timestamp).toLocaleTimeString()}
+//           `);
+
+//         existingMarkers[truck_id] = marker;
+//       }
+//     });
+
+//     // Remove trucks not in latest response
+//     Object.keys(existingMarkers).forEach((id) => {
+//       if (!currentTruckIds.has(id)) {
+//         map.removeLayer(existingMarkers[id]);
+//         delete existingMarkers[id];
+//       }
+//     });
+//   }, [liveVehicles]);
+
+//   return (
+//     <div
+//       style={{
+//         width: "100%",
+//         borderRadius: "10px",
+//         overflow: "hidden",
+//       }}
+//     >
+//       <div
+//         style={{
+//           fontSize: 12,
+//           marginBottom: 8,
+//           color: "#666",
+//         }}
+//       >
+//         {liveVehicles.length > 0
+//           ? `Live: ${liveVehicles.length} truck(s)`
+//           : "Waiting for truck data..."}
+//       </div>
+
+//       <div style={{ width: "100%", height: "400px" }}>
+//         <div
+//           ref={mapRef}
+//           style={{ width: "100%", height: "100%" }}
+//         />
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default FleetHtmlMap;
+
+
