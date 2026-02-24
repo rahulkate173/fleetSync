@@ -38,10 +38,12 @@ run_pathway() {
 }
 
 run_kafka() {
-  echo "Starting Kafka (Docker)..."
+  echo "Starting Kafka..."
   docker-compose up -d zookeeper kafka
-  sleep 5
-  echo "Kafka ready. Create topic: docker exec -it fleetsync-kafka-1 kafka-topics --create --topic fleetsync-gps --bootstrap-server localhost:9092"
+  sleep 10
+  # ✅ CREATE CORRECT TOPIC
+  docker exec fleetsync-kafka-1 kafka-topics.sh --create --topic fleetsync-gps-3 --bootstrap-server localhost:9092
+  echo "✅ Topic fleetsync-gps-3 ready!"
 }
 
 case "${1:-all}" in
