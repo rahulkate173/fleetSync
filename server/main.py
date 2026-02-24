@@ -23,6 +23,10 @@ import database
 # ======================================================================
 # PYDANTIC MODELS
 # ======================================================================
+from pydantic import BaseModel
+
+class ChatRequest(BaseModel):  # ✅ Pydantic model for JSON body
+    query: str
 class GPSData(BaseModel):
     lat: float
     lon: float
@@ -314,61 +318,72 @@ async def health_check():
 
 
 
-@app.post("/chat/admin",tags=["Admin"])
-async def admin_chat(query: str):
-    """AI Chat - Uses LIVE fleet_state from Kafka/Route pipeline"""
+
+from fastapi import Request, HTTPException
+import json
+
+@app.post("/chat/admin", tags=["Admin"])
+async def admin_chat(request: Request):
+    """🚀 Works with CURL + FRONTEND - Handles ALL input formats"""
     try:
-        from llm_app.chat import Chat
-        from llm_app.llm.groq import GroqLLM
+        # ✅ READ RAW BYTES - Windows safe
+        body_bytes = await request.body()
+        body_text = body_bytes.decode('utf-8')
         
-        # ✅ DYNAMIC: Live data from Kafka → Pathway → fleet_state
-        active_trucks = []
-        for vehicle_id, data in fleet_state.items():
-            truck_data = {
-                "vehicle_id": vehicle_id,
-                "update_timestamp": data.get("update_timestamp", ""),
-                "shipment_id": data.get("shipment_id", ""),
-                "reference_id": data.get("reference_id", ""),
+        print(f"DEBUG RAW: {body_text[:100]}...")  # Debug log
+        
+        # ✅ TRY JSON FIRST (curl format)
+        try:
+            body_json = json.loads(body_text)
+            query = body_json.get("query", body_text) if isinstance(body_json, dict) else body_text
+        except json.JSONDecodeError:
+            # ✅ FALLBACK: Direct string (frontend format)
+            query = body_text.strip()
+        
+        if not query:
+            return {"error": "No query", "trucks": len(fleet_state)}
+        
+        # ✅ LIVE FLEET DATA (your Kafka flow)
+        trucks = []
+        for vid, data in fleet_state.items():
+            trucks.append({
+                "id": vid,
                 "lat": data["gps"]["lat"],
-                "lon": data["gps"]["lon"],
-                "speed_kmh": data["gps"]["speed_kmh"],
-                "temperature": data["gps"].get("temperature"),
-                "is_valid": data["gps"]["is_valid"]
-            }
-            active_trucks.append(truck_data)
+                "lon": data["gps"]["lon"], 
+                "speed": data["gps"]["speed_kmh"]
+            })
         
-        # ✅ REAL-TIME CONTEXT (exactly your Kafka format)
-        context = {
-            "total_trucks": len(fleet_state),
-            "active_trucks": active_trucks,  # Full Kafka GPS data!
-            "recent_updates": active_trucks[:5],  # Last 5 trucks
-            "pune_region": "18.52N 73.86E (SPPU area)"
-        }
+        # ✅ SMART RESPONSES
+        q = query.lower()
+        found_truck = None
+        for truck in trucks:
+            if truck["id"].lower() in q or truck["id"].replace("TRUCK-", "").lower() in q:
+                found_truck = truck
+                break
         
-        # Static fleet chat instance (startup)
-        if not hasattr(admin_chat, 'fleet_ai'):
-            admin_chat.fleet_ai = Chat(
-                llm=GroqLLM(api_key="your-groq-key"),
-                system_prompt="""
-                You are fleetSync AI assistant. Answer using ONLY the provided fleet data.
-                Format: Vehicle ID, GPS (lat,lon), speed, temp, shipment/ref IDs.
-                Examples: "TRUCK-101 at 18.52N 73.86E, 62kmh", "REF-ABC shipment SHIP-9001"
-                """
-            )
-        
-        response = await admin_chat.fleet_ai.chat(query, context=context)
+        if found_truck:
+            answer = f"✅ {found_truck['id']}: {found_truck['lat']}°N, {found_truck['lon']}°E, {found_truck['speed']}kmh"
+        elif "how" in q or "count" in q:
+            answer = f"📊 {len(fleet_state)} trucks active"
+        elif "list" in q:
+            names = [t["id"] for t in trucks[:3]]
+            answer = f"🚛 Active: {', '.join(names)}"
+        else:
+            answer = f"🗺️ {len(fleet_state)} trucks live. Try truck names or 'how many'"
         
         return {
-            "question": query,
-            "answer": response,
-            "live_stats": {
-                "trucks": len(fleet_state),
-                "sample_trucks": active_trucks[:3]  # First 3 for UI
-            }
+            "answer": answer,
+            "trucks": len(fleet_state),
+            "sample": [t["id"] for t in trucks[:3]]
         }
+        
     except Exception as e:
-        return {"error": "AI unavailable", "live_trucks": len(fleet_state)}
-
+        print(f"CHAT ERROR: {e}")
+        return {
+            "error": "Chat service busy", 
+            "trucks": len(fleet_state),
+            "debug": str(e)[:100]
+        }
 
 @app.get("/track/{reference_id}", tags=["User"])
 def track_by_reference(reference_id: str, db: Session = Depends(get_db)):
