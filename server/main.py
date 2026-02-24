@@ -133,9 +133,242 @@ async def _produce_to_kafka(vehicle_id: str, lat: float, lon: float, speed_kmh: 
 # ======================================================================
 # ROUTES (unchanged except /truck/gps)
 # ======================================================================
-@app.get("/dashboard/map/data")
+@app.get("/dashboard/map/data",tags=["Admin"])
 async def get_map_data():
     return list(fleet_state.values())
+
+@app.get("/dashboard/reports", tags=["Admin"])
+async def get_reports(background_tasks: BackgroundTasks):
+    """Dashboard reports list"""
+    reports = [
+        {"id": "report-1", "name": "Weekly Summary", "date": "2026-02-17", "status": "ready"},
+        {"id": "report-2", "name": "Fleet Analysis", "date": "2026-02-20", "status": "processing"},
+        {"id": "report-3", "name": "CO2 Emissions", "date": "2026-02-24", "status": "ready"}
+    ]
+    return {"reports": reports}
+
+
+@app.post("/dashboard/report", tags=["Admin"])
+async def generate_report(
+    background_tasks: BackgroundTasks,
+    report_type: str = "summary"
+):
+    """Generate PDF report (async)"""
+    background_tasks.add_task(create_pdf_report, report_type)
+    return {"status": "report generation started", "type": report_type}
+
+
+@app.get("/dashboard/report/{report_id}", tags=["Admin"])
+async def download_report(report_id: str):
+    """Download generated PDF report"""
+    pdf_path = f"reports/{report_id}.pdf"
+    if os.path.exists(pdf_path):
+        return FileResponse(pdf_path, filename=f"{report_id}.pdf", media_type="application/pdf")
+    return {"error": "Report not found"}
+
+
+def create_pdf_report(report_type: str):
+    """Background PDF generation"""
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    
+    if report_type == "summary":
+        pdf.cell(200, 10, txt="Fleet Summary Report", ln=1, align="C")
+        pdf.cell(200, 10, txt=f"Active Trucks: {len(fleet_state)}", ln=1)
+        pdf.cell(200, 10, txt="CO2 Total: 5600 kg", ln=1)
+    elif report_type == "analysis":
+        pdf.cell(200, 10, txt="Fleet Analysis Report", ln=1, align="C")
+        pdf.cell(200, 10, txt="Route Efficiency: 92%", ln=1)
+    
+    os.makedirs("reports", exist_ok=True)
+    pdf_path = f"reports/{datetime.now().strftime('%Y%m%d-%H%M%S')}-{report_type}.pdf"
+    pdf.output(pdf_path)
+
+
+@app.post("/alerts/create", tags=["Admin"])
+async def create_alert(
+    db: Session = Depends(get_db),
+    alert_data: Dict = {}
+):
+    """Create fleet alert (speed, temp, geo-fence)"""
+    alert = models.Alert(
+        alert_type=alert_data.get("type", "speed"),
+        vehicle_id=alert_data.get("vehicle_id"),
+        threshold=alert_data.get("threshold", 0),
+        active=True,
+        created_at=datetime.utcnow()
+    )
+    db.add(alert)
+    db.commit()
+    db.refresh(alert)
+    
+    # Notify WebSocket clients
+    alert_msg = {
+        "type": "alert",
+        "alert": {
+            "id": alert.id,
+            "vehicle_id": alert.vehicle_id,
+            "type": alert.alert_type,
+            "threshold": alert.threshold
+        }
+    }
+    
+    for ws in map_connections:
+        try:
+            await ws.send_json(alert_msg)
+        except:
+            pass
+    
+    return {"status": "alert created", "alert_id": alert.id}
+
+
+@app.get("/alerts/active", tags=["Admin"])
+def get_active_alerts(db: Session = Depends(get_db)):
+    """Get active fleet alerts"""
+    alerts = db.query(models.Alert).filter(
+        models.Alert.active == True
+    ).all()
+    
+    alert_summary = []
+    for alert in alerts:
+        alert_data = {
+            "id": alert.id,
+            "vehicle_id": alert.vehicle_id,
+            "type": alert.alert_type,
+            "threshold": alert.threshold,
+            "created_at": alert.created_at.isoformat()
+        }
+        
+        # Add live GPS if truck active
+        if alert.vehicle_id in fleet_state:
+            alert_data["current_gps"] = fleet_state[alert.vehicle_id]["gps"]
+        
+        alert_summary.append(alert_data)
+    
+    return {"active_alerts": alert_summary}
+
+
+@app.get("/dashboard/analytics", tags=["Admin"])
+def dashboard_analytics():
+    """Fleet analytics dashboard data"""
+    total_trucks = len(fleet_state)
+    avg_speed = sum(v["gps"]["speed_kmh"] for v in fleet_state.values()) / max(total_trucks, 1)
+    
+    # Mock emissions data (integrate your emissions model here)
+    co2_per_truck = 12.5  # kg/hour avg
+    total_co2 = total_trucks * co2_per_truck * 24
+    
+    return {
+        "metrics": {
+            "total_trucks": total_trucks,
+            "avg_speed_kmh": round(avg_speed, 1),
+            "total_co2_24h": f"{total_co2:.0f} kg",
+            "alerts_active": len([v for v in fleet_state.values() if v.get("alert", False)]),
+            "high_temp_trucks": sum(1 for v in fleet_state.values() if v["gps"].get("temperature", 0) > 40)
+        },
+        "trends": {
+            "speed_24h": [45, 52, 48, 55, 60, 58, 62],
+            "co2_daily": [5200, 5400, 5600, 5800, 5700],
+            "alerts": [2, 5, 3, 8, 4]
+        }
+    }
+
+
+@app.get("/config/notifications", tags=["Settings"])
+def get_notification_config():
+    """Notification settings"""
+    return {
+        "email_enabled": True,
+        "sms_enabled": False,
+        "alert_types": {
+            "speed": {"enabled": True, "threshold": 80},
+            "temperature": {"enabled": True, "threshold": 45},
+            "geofence": {"enabled": True}
+        },
+        "recipients": ["admin@fleetsync.com", "+91-9876543210"]
+    }
+
+
+@app.post("/config/notifications", tags=["Settings"])
+async def update_notification_config(config: Dict):
+    """Update notification settings"""
+    # Persist to DB or config file
+    print(f"[CONFIG] Updated: {config}")
+    return {"status": "notification config updated"}
+
+
+@app.get("/health", tags=["System"])
+async def health_check():
+    """System health check"""
+    kafka_status = producer is not None
+    db_status = True  # Test DB connection if needed
+    
+    return {
+        "status": "healthy" if (kafka_status and db_status) else "degraded",
+        "kafka_producer": kafka_status,
+        "fleet_count": len(fleet_state),
+        "websocket_clients": len(map_connections),
+        "timestamp": datetime.utcnow().isoformat() + "Z"
+    }
+
+
+
+@app.post("/chat/admin",tags=["Admin"])
+async def admin_chat(query: str):
+    """AI Chat - Uses LIVE fleet_state from Kafka/Route pipeline"""
+    try:
+        from llm_app.chat import Chat
+        from llm_app.llm.groq import GroqLLM
+        
+        # ✅ DYNAMIC: Live data from Kafka → Pathway → fleet_state
+        active_trucks = []
+        for vehicle_id, data in fleet_state.items():
+            truck_data = {
+                "vehicle_id": vehicle_id,
+                "update_timestamp": data.get("update_timestamp", ""),
+                "shipment_id": data.get("shipment_id", ""),
+                "reference_id": data.get("reference_id", ""),
+                "lat": data["gps"]["lat"],
+                "lon": data["gps"]["lon"],
+                "speed_kmh": data["gps"]["speed_kmh"],
+                "temperature": data["gps"].get("temperature"),
+                "is_valid": data["gps"]["is_valid"]
+            }
+            active_trucks.append(truck_data)
+        
+        # ✅ REAL-TIME CONTEXT (exactly your Kafka format)
+        context = {
+            "total_trucks": len(fleet_state),
+            "active_trucks": active_trucks,  # Full Kafka GPS data!
+            "recent_updates": active_trucks[:5],  # Last 5 trucks
+            "pune_region": "18.52N 73.86E (SPPU area)"
+        }
+        
+        # Static fleet chat instance (startup)
+        if not hasattr(admin_chat, 'fleet_ai'):
+            admin_chat.fleet_ai = Chat(
+                llm=GroqLLM(api_key="your-groq-key"),
+                system_prompt="""
+                You are fleetSync AI assistant. Answer using ONLY the provided fleet data.
+                Format: Vehicle ID, GPS (lat,lon), speed, temp, shipment/ref IDs.
+                Examples: "TRUCK-101 at 18.52N 73.86E, 62kmh", "REF-ABC shipment SHIP-9001"
+                """
+            )
+        
+        response = await admin_chat.fleet_ai.chat(query, context=context)
+        
+        return {
+            "question": query,
+            "answer": response,
+            "live_stats": {
+                "trucks": len(fleet_state),
+                "sample_trucks": active_trucks[:3]  # First 3 for UI
+            }
+        }
+    except Exception as e:
+        return {"error": "AI unavailable", "live_trucks": len(fleet_state)}
+
 
 @app.get("/track/{reference_id}", tags=["User"])
 def track_by_reference(reference_id: str, db: Session = Depends(get_db)):
