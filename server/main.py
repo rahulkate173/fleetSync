@@ -418,6 +418,126 @@ async def truck_gps(data: TruckGpsInput):
     except Exception as e:
         print(f"[KAFKA] ERROR: {str(e)}")
         raise Exception(f"Kafka failed: {str(e)}")
+    
+
+@app.get("/alerts/history", tags=["Truck Driver"])
+async def get_driver_alert_history(
+    truck_id: str, 
+    db: Session = Depends(get_db)
+):
+    """
+    Truck Driver: See ALL admin-sent alerts for my truck
+    Shows complete history of alerts created by admin
+    """
+    # Get ALL alerts sent by admin for this truck (past 7 days)
+    from datetime import timedelta
+    cutoff_time = datetime.utcnow() - timedelta(days=7)
+    
+    alerts = db.query(models.Alert).filter(
+        models.Alert.vehicle_id == truck_id,
+        models.Alert.created_at >= cutoff_time
+    ).order_by(models.Alert.created_at.desc()).all()
+    
+    # Live GPS status
+    live_gps = fleet_state.get(truck_id, {}).get("gps", {})
+    truck_status = "online" if truck_id in fleet_state else "offline"
+    
+    # Format complete admin alert history for driver
+    driver_alert_history = []
+    for alert in alerts:
+        alert_data = {
+            "alert_id": alert.id,
+            "type": alert.alert_type,  # speed, temp, geofence
+            "message": f"Admin set {alert.alert_type} limit: {alert.threshold}",
+            "threshold": alert.threshold,
+            "status": "active" if alert.active else "resolved",
+            "sent_by": "Admin",  # All alerts from admin panel
+            "sent_at": alert.created_at.isoformat(),
+            "resolved_at": getattr(alert, 'resolved_at', None) and alert.resolved_at.isoformat(),
+            
+            # Driver actionable info
+            "action_required": alert.active,
+            "current_status": {
+                "speed_kmh": live_gps.get("speed_kmh", 0),
+                "temperature": live_gps.get("temperature", 0),
+                "within_limit": not alert.active  # Active = still violating
+            }
+        }
+        driver_alert_history.append(alert_data)
+    
+    return {
+        "truck_id": truck_id,
+        "driver_view": "all_admin_alerts",
+        "truck_status": truck_status,
+        "live_gps": live_gps,
+        "admin_alerts_history": driver_alert_history,
+        "unresolved_count": len([a for a in driver_alert_history if a["status"] == "active"]),
+        "total_admin_alerts": len(driver_alert_history),
+        "last_sync": datetime.utcnow().isoformat() + "Z"
+    }
+
+@app.get("/alert/{truck_id}", tags=["Truck Driver"])
+async def get_all_admin_alerts_for_driver(truck_id: str, db: Session = Depends(get_db)):
+    """
+    Truck Driver: See ALL admin-sent alerts for my truck
+    Complete history of admin-created alerts + current status
+    """
+    from datetime import timedelta
+    
+    # Get ALL admin alerts for this truck (last 30 days)
+    cutoff_time = datetime.utcnow() - timedelta(days=30)
+    alerts = db.query(models.Alert).filter(
+        models.Alert.vehicle_id == truck_id,
+        models.Alert.created_at >= cutoff_time
+    ).order_by(models.Alert.created_at.desc()).all()
+    
+    # Live truck status
+    live_data = fleet_state.get(truck_id, {})
+    gps = live_data.get("gps", {})
+    
+    # Driver-friendly alert list
+    driver_alerts = []
+    for alert in alerts:
+        is_active = alert.active
+        current_speed = gps.get("speed_kmh", 0)
+        current_temp = gps.get("temperature", 0)
+        
+        alert_item = {
+            "alert_id": alert.id,
+            "from_admin": True,
+            "type": alert.alert_type,
+            "limit": alert.threshold,
+            "status": "ACTIVE" if is_active else "RESOLVED",
+            "sent_time": alert.created_at.strftime("%Y-%m-%d %H:%M"),
+            "message": f"Admin: {alert.alert_type.title()} limit {alert.threshold}",
+            
+            # Driver needs to know:
+            "is_violating_now": False,
+            "current_reading": 0
+        }
+        
+        # Check current violation
+        if alert.alert_type == "speed":
+            alert_item["is_violating_now"] = current_speed > alert.threshold
+            alert_item["current_reading"] = current_speed
+        elif alert.alert_type == "temperature":
+            alert_item["is_violating_now"] = current_temp > alert.threshold
+            alert_item["current_reading"] = current_temp
+        
+        driver_alerts.append(alert_item)
+    
+    return {
+        "my_truck": truck_id,
+        "truck_online": truck_id in fleet_state,
+        "current_speed": gps.get("speed_kmh", 0),
+        "current_temp": gps.get("temperature", 0),
+        "admin_alerts": driver_alerts,
+        "urgent_count": len([a for a in driver_alerts if a["is_violating_now"]]),
+        "total_from_admin": len(driver_alerts),
+        "last_update": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+
 
 @app.post("/ingest/pathway", tags=["System"])
 async def ingest_pathway(data: PathwayUpdate, db: Session = Depends(get_db)):
