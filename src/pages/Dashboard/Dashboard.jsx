@@ -1,33 +1,32 @@
-
 import "./Dashboard.scss";
 import axios from "axios";
 import FleetHtmlMap from "../../components/FleetHtmlMap";
-
-
 import React, { useState, useEffect } from "react";
 import Side from "../../components/Side";
 import Header from "../../components/Header";
 import Sidebar from "../../components/Sidebar";
-import AiModal from "../../components/AiModal";
 import Analysis from "../Analysis/Analysis";
 import Chart from "../../components/chart";
 import { useShipmentData } from "../../context/ShipmentDataContext";
 import Card from "../../components/Card";
 
-
 const Dashboard = () => {
   const shipmentData = useShipmentData();
   const [active, setActive] = useState(0);
   const [total, setTotal] = useState(0);
-
+  
+  // 🚀 NEW: Chat state
+  const [chatMessages, setChatMessages] = useState([
+    { role: 'assistant', content: 'Fleet AI ready! Ask about trucks, locations, delays, CO2...' }
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await axios.get("http://localhost:8000/dashboard/summary");
         const data = res.data;
-        //  console.log(data)
-        
         setActive(data.fleet_status.delayed || 0);
         setTotal(data.fleet_status.total || 0);
       } catch (err) {
@@ -38,17 +37,42 @@ const Dashboard = () => {
     fetchData();
   }, []);
 
+  // 🚀 NEW: Send chat message to FastAPI /chat/admin
+  const sendChatMessage = async () => {
+    if (!chatInput.trim() || chatLoading) return;
+
+    const userMessage = { role: 'user', content: chatInput };
+    setChatMessages(messages => [...messages, userMessage]);
+    setChatLoading(true);
+    setChatInput('');
+
+    try {
+      const response = await axios.post("http://localhost:8000/chat/admin", chatInput, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const aiResponse = { 
+        role: 'assistant', 
+        content: response.data.answer || 'Processing fleet data...' 
+      };
+      setChatMessages(messages => [...messages, aiResponse]);
+    } catch (error) {
+      const errorMsg = { 
+        role: 'assistant', 
+        content: 'Chat service busy. Try: "How many trucks active?"' 
+      };
+      setChatMessages(messages => [...messages, errorMsg]);
+    }
+    
+    setChatLoading(false);
+  };
+
   return (
     <div className="dashboard">
-      {/* <Side /> */}
       <Sidebar />
-
       <div className="main">
-        {/* <Header /> */}
-
         <div className="content">
           <div className="top-section">
-
             <div className="map-card">
               <h3>Live Vehicle Tracking</h3>
               <FleetHtmlMap />
@@ -57,13 +81,11 @@ const Dashboard = () => {
 
           <div className="middle-section">
             <div className="card shipment-details">
-
               <h2>Fleet Status</h2>
               <div className="fleet-count">
                 <span className="active">{total-active}</span>
                 <span className="divider">/</span>
                 <span className="total">{total}</span>
-
                 <p>Fleets Active</p>
               </div>
             </div>
@@ -81,18 +103,63 @@ const Dashboard = () => {
 
           <div className="bottom-section">
             <div className="card trends">
-
               <Chart shipmentData={shipmentData} />
             </div>
 
             <div className="card efficiency">
-
               <Card />
             </div>
 
+            {/* 🚀 REAL CHAT - Replaces AiModal - SAME UI CONTAINER */}
             <div className="card chat">
-              {/* <h3>Chat</h3> */}
-              <AiModal />
+              <div className="chat-header">
+                <h3>Fleet AI Assistant</h3>
+                <span className="live-indicator">
+                  {total} trucks live
+                </span>
+              </div>
+              
+              {/* Chat Messages */}
+              <div className="chat-messages" style={{ height: '200px', overflowY: 'auto', marginBottom: '10px' }}>
+                {chatMessages.map((msg, index) => (
+                  <div key={index} className={`chat-message ${msg.role}`}>
+                    <div className="message-bubble">
+                      {msg.content}
+                    </div>
+                  </div>
+                ))}
+                {chatLoading && (
+                  <div className="chat-message assistant">
+                    <div className="message-bubble">AI thinking...</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Chat Input */}
+              <div className="chat-input" style={{ display: 'flex', gap: '10px' }}>
+                <input
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && sendChatMessage()}
+                  placeholder="Ask about trucks, delays, routes, CO2..."
+                  style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #444' }}
+                  disabled={chatLoading}
+                />
+                <button
+                  onClick={sendChatMessage}
+                  disabled={chatLoading || !chatInput.trim()}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#3b82f6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: chatLoading ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {chatLoading ? '...' : 'Send'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
