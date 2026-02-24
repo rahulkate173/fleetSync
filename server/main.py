@@ -616,6 +616,122 @@ def save_simulation_coordinate(data: SimulationCoordinate):
         ])
     return {"status": "coordinate saved"}
 
+@app.get("/analysis/fleet-stats", tags=["Graph"])
+async def get_fleet_stats():
+    """🚀 Advanced analytics from PROCESSED fleet_state data"""
+    
+    if not fleet_state:
+        return {
+            "totalFleet": 0, "activeVehicles": 0, "avgSpeed": 0,
+            "avgTemp": 0, "totalDistance": "0 km", "routeEfficiency": "0%",
+            "totalCO2": "0 kg", "validGps": 0, "avgUptime": "0%"
+        }
+    
+    total_vehicles = len(fleet_state)
+    
+    # ✅ Use PROCESSED fleet_state fields
+    valid_gps_count = 0
+    total_speed = 0
+    total_temp = 0
+    total_distance_estimate = 0
+    idle_count = 0
+    high_temp_count = 0
+    
+    for data in fleet_state.values():
+        gps = data["gps"]
+        
+        # GPS validity (already processed by Pathway)
+        if gps["is_valid"]:
+            valid_gps_count += 1
+            total_speed += gps["speed_kmh"]
+            total_temp += gps.get("temperature", 0)
+            
+            # Distance estimate (speed * time factor)
+            total_distance_estimate += gps["speed_kmh"] * 0.1  # Hourly estimate
+        
+        # Business rules from processed data
+        if gps["speed_kmh"] < 5:
+            idle_count += 1
+        if gps.get("temperature", 0) > 25:
+            high_temp_count += 1
+    
+    # 🚀 COMPREHENSIVE METRICS
+    active_vehicles = valid_gps_count
+    avg_speed = total_speed / valid_gps_count if valid_gps_count else 0
+    avg_temp = total_temp / valid_gps_count if valid_gps_count else 0
+    
+    return {
+        "totalFleet": total_vehicles,
+        "activeVehicles": active_vehicles,
+        "validGpsCount": valid_gps_count,
+        "idleVehicles": idle_count,
+        "highTempVehicles": high_temp_count,
+        "avgSpeed": round(avg_speed, 1),
+        "avgTemp": round(avg_temp, 1),
+        "totalDistance": f"{total_distance_estimate:.0f} km",
+        "routeEfficiency": f"{min(98, 85 + (active_vehicles/total_vehicles*15)):.0f}%",
+        "totalCO2": f"{total_vehicles * 5.6 * (avg_speed/60):.0f} kg",  # Dynamic CO2
+        "uptime": f"{(valid_gps_count/total_vehicles)*100:.1f}%"
+    }
+@app.get("/analysis/speed-trends", tags=["Graph"])
+async def get_speed_trends():
+    """🚀 DYNAMIC speed trends from live fleet_state (last 24hr)"""
+    
+    # Aggregate speed by hour from fleet_state
+    hourly_speeds = defaultdict(list)
+    
+    for vehicle_id, data in fleet_state.items():
+        # Extract timestamp (handle missing timestamps)
+        timestamp_str = data.get("update_timestamp", "")
+        if timestamp_str:
+            try:
+                # Parse ISO timestamp → Unix seconds
+                dt = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                hour_key = dt.strftime("%H:00")
+                speed = data["gps"]["speed_kmh"]
+                hourly_speeds[hour_key].append(speed)
+            except:
+                # Fallback: use current time
+                hour_key = datetime.now().strftime("%H:00")
+                speed = data["gps"]["speed_kmh"]
+                hourly_speeds[hour_key].append(speed)
+        else:
+            # No timestamp → current hour
+            hour_key = datetime.now().strftime("%H:00")
+            speed = data["gps"]["speed_kmh"]
+            hourly_speeds[hour_key].append(speed)
+    
+    # Calculate average speeds for last 24hr
+    now = datetime.now()
+    labels = []
+    avg_speeds = []
+    
+    for i in range(24):
+        hour_ago = now - timedelta(hours=i)
+        hour_key = hour_ago.strftime("%H:00")
+        
+        speeds = hourly_speeds.get(hour_key, [0])
+        avg_speed = sum(speeds) / len(speeds)
+        
+        labels.append(hour_key)
+        avg_speeds.append(round(avg_speed, 1))
+    
+    # Reverse to show oldest → newest
+    labels.reverse()
+    avg_speeds.reverse()
+    
+    return {
+        "labels": labels[-6:],  # Last 6 hours
+        "datasets": [{
+            "label": f"Avg Fleet Speed ({len(fleet_state)} trucks)",
+            "data": avg_speeds[-6:],
+            "borderColor": "#10b981",
+            "backgroundColor": "rgba(16, 185, 129, 0.1)",
+            "fill": True,
+            "tension": 0.4  # Smooth curve
+        }]
+    }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="localhost", port=8000)
