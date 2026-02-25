@@ -13,7 +13,7 @@ export const ShipmentDataProvider = ({ children }) => {
       {
         label: "Shipments Per Day",
         data: [],
-        backgroundColor: "#22c55e",
+        backgroundColor: "#00adb5",
       },
     ],
   });
@@ -32,7 +32,7 @@ export const ShipmentDataProvider = ({ children }) => {
             {
               label: "Shipments Per Day",
               data: trends,
-              backgroundColor: "#22c55e",
+              backgroundColor: "#00adb5",
             },
           ],
         });

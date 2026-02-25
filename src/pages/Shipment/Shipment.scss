@@ -2,11 +2,12 @@
   display: flex;
   height: 100vh;
   font-family: Arial, sans-serif;
-  background: #f4f6f8;
+  background-color: var(--bg-main);
+  color: var(--text-main);
 }
 
 /* Sidebar */
-.sidebar {
+.shipment-page .sidebar {
   width: 220px;
   background: #0f172a;
   color: white;
@@ -16,15 +17,15 @@
   gap: 15px;
 }
 
-.profile-circle {
+.shipment-page .profile-circle {
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: #22c55e;
+  background: #00adb5;
   margin-bottom: 20px;
 }
 
-.sidebar button {
+.shipment-page .sidebar button {
   background: transparent;
   border: 1px solid #334155;
   color: white;
@@ -34,24 +35,29 @@
   transition: 0.3s;
 }
 
-.sidebar button:hover,
-.sidebar .active {
-  background: #22c55e;
-  border-color: #22c55e;
+.shipment-page .sidebar button:hover,
+.shipment-page .sidebar .active {
+  background: #00adb5;
+  border-color: #00adb5;
 }
 
 /* Main Layout */
-.main-content {
+.shipment-page .main-content {
   flex: 1;
   display: flex;
   padding: 30px;
   gap: 25px;
+  background-color: var(--bg-alt);
+  border-radius: 20px;
+  margin: 20px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
 }
 
 /* Map Section */
-.map-section {
+.shipment-page .map-section {
   flex: 2;
-  background: white;
+  background-color: var(--bg-alt);
+  color: var(--text-main);
   padding: 20px;
   border-radius: 16px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
@@ -69,7 +75,7 @@
 }
 
 /* Right Panel */
-.details-panel {
+.shipment-page .details-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -77,21 +83,21 @@
 }
 
 /* Search Box */
-.search-box {
+.shipment-page .search-box {
   display: flex;
   gap: 10px;
 }
 
-.search-box input {
+.shipment-page .search-box input {
   flex: 1;
   padding: 10px;
   border-radius: 8px;
   border: 1px solid #cbd5e1;
 }
 
-.search-box button {
+.shipment-page .search-box button {
   padding: 10px 15px;
-  background: #22c55e;
+  background: #00adb5;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -100,18 +106,58 @@
 }
 
 /* Shipment Details */
-.shipment-details {
-  background: white;
+.shipment-page .shipment-details {
+  background-color: var(--bg-alt);
+  color: var(--text-main);
   padding: 20px;
   border-radius: 16px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
 }
 
-.shipment-details h4 {
+.shipment-page .shipment-details h4 {
   margin-bottom: 15px;
 }
 
-.shipment-details p {
+.shipment-page .shipment-details p {
   margin-bottom: 10px;
   font-size: 15px;
+}
+.shipment-page .action-buttons {
+  margin-top: 15px;
+  display: flex;
+  gap: 10px;
+
+  button {
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+}
+
+.side-popup {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 350px;
+  height: 100vh;
+  background: #fff;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
+  padding: 20px;
+  z-index: 1000;
+}
+
+.popup-content {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+
+  textarea {
+    min-height: 120px;
+    padding: 10px;
+    resize: none;
+  }
+
+  .popup-buttons {
+    display: flex;
+    justify-content: space-between;
+  }
 }

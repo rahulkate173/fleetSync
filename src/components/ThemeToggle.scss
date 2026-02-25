@@ -1,0 +1,21 @@
+.theme-toggle {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 1000;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color, #393e46);
+  background-color: var(--accent-color, #00adb5);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.theme-toggle:hover {
+  transform: translateY(-1px);
+}
+

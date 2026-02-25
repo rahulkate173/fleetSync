@@ -1,3 +1,6 @@
+
+
+
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -6,22 +9,9 @@ const FleetHtmlMap = () => {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef({});
-  const routeLayersRef = useRef([]);
-
   const [liveVehicles, setLiveVehicles] = useState([]);
 
   const API_URL = "http://localhost:8000";
-  const ORS_API_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjA3YTk2ZjZlMDRmZTRiZDhiZDI2NDQ0MTE4NTZiYzQ5IiwiaCI6Im11cm11cjY0In0=";
-
-  // ================================
-  // STATIC DELIVERY POINTS
-  // ================================
-  const jobs = [
-    { id: 1, location: [73.87, 18.53] },
-    { id: 2, location: [73.88, 18.54] },
-    { id: 3, location: [73.89, 18.55] },
-    { id: 4, location: [73.90, 18.56] }
-  ];
 
   // ================================
   // FETCH DRIVER DATA
@@ -40,7 +30,7 @@ const FleetHtmlMap = () => {
   };
 
   // ======================================
-  // INITIALIZE MAP
+  // INITIALIZE MAP (RUN ONCE)
   // ======================================
   useEffect(() => {
     if (mapInstanceRef.current) return;
@@ -67,7 +57,7 @@ const FleetHtmlMap = () => {
   }, []);
 
   // ======================================
-  // UPDATE DRIVER MARKERS
+  // UPDATE MARKERS
   // ======================================
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -77,11 +67,11 @@ const FleetHtmlMap = () => {
     const currentIds = new Set();
 
     liveVehicles.forEach((vehicle) => {
-      const lat = vehicle.gps?.lat;
-      const lng = vehicle.gps?.lon;
-      const driver_id = vehicle.vehicle_id;
+      const lat = vehicle?.gps?.lat;
+      const lng = vehicle?.gps?.lon;
+      const driver_id = vehicle?.vehicle_id;
 
-      if (!lat || !lng) return;
+      if (!lat || !lng || !driver_id) return;
 
       currentIds.add(driver_id);
 
@@ -96,6 +86,7 @@ const FleetHtmlMap = () => {
       }
     });
 
+    // Remove old markers
     Object.keys(existingMarkers).forEach((id) => {
       if (!currentIds.has(id)) {
         map.removeLayer(existingMarkers[id]);
@@ -104,135 +95,20 @@ const FleetHtmlMap = () => {
     });
   }, [liveVehicles]);
 
-  // ======================================
-  // OPTIMIZE ROUTES
-  // ======================================
-  const optimizeRoutes = async () => {
-    if (liveVehicles.length === 0) {
-      alert("No drivers available.");
-      return;
-    }
-
-    const map = mapInstanceRef.current;
-
-    // Clear old routes
-    routeLayersRef.current.forEach((layer) => {
-      map.removeLayer(layer);
-    });
-    routeLayersRef.current = [];
-
-    // Convert drivers to ORS vehicles
-    const vehicles = liveVehicles.map((vehicle, index) => ({
-      id: index + 1,
-      profile: "driving-car",
-      start: [vehicle.gps.lon, vehicle.gps.lat],
-      end: [vehicle.gps.lon, vehicle.gps.lat]
-    }));
-
-    const body = {
-      jobs,
-      vehicles
-    };
-
-    try {
-      const response = await fetch(
-        "https://api.openrouteservice.org/optimization",
-        {
-          method: "POST",
-          headers: {
-            Authorization: ORS_API_KEY,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(body)
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        console.error(data);
-        alert("Optimization failed.");
-        return;
-      }
-
-      drawRoutes(data);
-
-    } catch (err) {
-      console.error("Optimization error:", err);
-    }
-  };
-
-  // ======================================
-  // DRAW ROUTES
-  // ======================================
-  const drawRoutes = async (data) => {
-    const map = mapInstanceRef.current;
-    const colors = ["blue", "red", "green", "purple"];
-
-    for (let i = 0; i < data.routes.length; i++) {
-      const route = data.routes[i];
-      const orderedCoordinates = [];
-
-      route.steps.forEach((step) => {
-        if (step.type === "start" && route.vehicle_start)
-          orderedCoordinates.push(route.vehicle_start);
-
-        if (step.type === "job") {
-          const job = jobs.find((j) => j.id === step.id);
-          if (job) orderedCoordinates.push(job.location);
-        }
-
-        if (step.type === "end" && route.vehicle_end)
-          orderedCoordinates.push(route.vehicle_end);
-      });
-
-      if (orderedCoordinates.length < 2) continue;
-
-      const directionResponse = await fetch(
-        "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
-        {
-          method: "POST",
-          headers: {
-            Authorization: ORS_API_KEY,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            coordinates: orderedCoordinates,
-            radiuses: orderedCoordinates.map(() => 2000)
-          })
-        }
-      );
-
-      const geoData = await directionResponse.json();
-
-      if (!directionResponse.ok || !geoData.features) continue;
-
-      const routeLayer = L.geoJSON(geoData, {
-        style: {
-          color: colors[i % colors.length],
-          weight: 5
-        }
-      }).addTo(map);
-
-      routeLayersRef.current.push(routeLayer);
-      map.fitBounds(routeLayer.getBounds());
-    }
-  };
-
   return (
-    <div>
-      <button onClick={optimizeRoutes} style={{ marginBottom: 10 }}>
-        Optimize Routes
-      </button>
+    <div style={{ width: "100%" }}>
+      <div style={{ fontSize: 12, marginBottom: 8 }}>
+        {liveVehicles.length > 0
+          ? <>Live: {liveVehicles.length} driver(s)</>
+          : "Waiting for driver data..."}
+      </div>
 
       <div
         ref={mapRef}
-        style={{ width: "100%", height: "500px" }}
+        style={{ width: "100%", height: "400px" }}
       />
     </div>
   );
 };
 
 export default FleetHtmlMap;
-
-

@@ -89,7 +89,6 @@ useEffect(() => {
         <div className="logo">FleetSync</div>
         <div className="nav-links">
           <a href="#features" className="nav-btn">Features</a>
-          <Link to="/track" className="nav-btn">Track</Link>
         </div>
       </nav>
 
@@ -105,13 +104,13 @@ useEffect(() => {
           </p>
 
           <div className="hero-buttons">
-            <Link to="/user/order" className="primary-btn">
-              user
+            <Link to="/user" className="primary-btn">
+              User Login
             </Link>
             <Link to="/login" className="secondary-btn">
               Admin Login
             </Link>
-             <Link to="/driver" className="secondary-btn">
+            <Link to="/driver/login" className="secondary-btn">
               Driver Login
             </Link>
           </div>
@@ -140,9 +139,6 @@ useEffect(() => {
       </section>
 
       {/* FEATURES SECTION */}
-     <div className="curve-divider"></div>
-
-
       <section className="Section2" id="features">
 
         <div className="sec2Top">

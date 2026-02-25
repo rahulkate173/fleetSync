@@ -120,7 +120,7 @@ const Dashboard = () => {
               </div>
               
               {/* Chat Messages */}
-              <div className="chat-messages" style={{ height: '200px', overflowY: 'auto', marginBottom: '10px' }}>
+              <div className="chat-messages">
                 {chatMessages.map((msg, index) => (
                   <div key={index} className={`chat-message ${msg.role}`}>
                     <div className="message-bubble">
@@ -136,26 +136,17 @@ const Dashboard = () => {
               </div>
 
               {/* Chat Input */}
-              <div className="chat-input" style={{ display: 'flex', gap: '10px' }}>
+              <div className="chat-input">
                 <input
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && sendChatMessage()}
                   placeholder="Ask about trucks, delays, routes, CO2..."
-                  style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #444' }}
                   disabled={chatLoading}
                 />
                 <button
                   onClick={sendChatMessage}
                   disabled={chatLoading || !chatInput.trim()}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#3b82f6',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: chatLoading ? 'not-allowed' : 'pointer'
-                  }}
                 >
                   {chatLoading ? '...' : 'Send'}
                 </button>

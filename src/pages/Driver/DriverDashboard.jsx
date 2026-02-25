@@ -1,22 +1,74 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import DriverMap from "../../components/DriverMap";
 import "./DriverDashboard.scss";
+
+const DRIVER_ID = "40"; // Replace with logged-in driver ID
 
 const DriverDashboard = () => {
   const navigate = useNavigate();
   const [isActive, setIsActive] = useState(false);
   const [location, setLocation] = useState(null);
+  const [stats, setStats] = useState({
+    load: "—",
+    co2: "—",
+    avgSpeed: "—",
+    distance: "—",
+  });
+  const [notifications, setNotifications] = useState([]);
   const intervalRef = useRef(null);
+  const socketRef = useRef(null);
 
-  // Dummy stats (Replace with API data if needed)
-  const stats = {
-    load: "12 Tons",
-    co2: "240 kg",
-    avgSpeed: "65 km/h",
-    distance: "320 km",
+  // ==============================
+  // 🔥 WEBSOCKET CONNECTION
+  // ==============================
+
+  const connectWebSocket = () => {
+    const ws = new WebSocket(
+      `ws://localhost:8000/ws/notifications/${DRIVER_ID}`
+    );
+
+    ws.onopen = () => {
+      console.log("Connected to notification server");
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      const newNotification = {
+        id: Date.now(),
+        message: data.message,
+        time: new Date().toLocaleTimeString(),
+      };
+
+      setNotifications((prev) => [newNotification, ...prev]);
+    };
+
+    ws.onclose = () => {
+      console.log("WebSocket disconnected. Reconnecting...");
+      setTimeout(connectWebSocket, 3000);
+    };
+
+    ws.onerror = (err) => {
+      console.error("WebSocket error:", err);
+      ws.close();
+    };
+
+    socketRef.current = ws;
   };
 
-  // Function to send location to backend
+  useEffect(() => {
+    connectWebSocket();
+
+    return () => {
+      if (socketRef.current) socketRef.current.close();
+    };
+  }, []);
+
+  // ==============================
+  // 📍 GPS TRACKING
+  // ==============================
+
   const sendLocationToBackend = async (coords) => {
     try {
       await fetch("http://localhost:8000/truck/gps", {
@@ -25,12 +77,12 @@ const DriverDashboard = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          vehicle_id: '40',
+          vehicle_id: DRIVER_ID,
           lat: coords.latitude,
           lon: coords.longitude,
           speed_kmh: 50,
           temperature: 0,
-          reference_id:'45',
+          reference_id: "45",
         }),
       });
     } catch (err) {
@@ -38,10 +90,9 @@ const DriverDashboard = () => {
     }
   };
 
-  // Start GPS Tracking
   const startTracking = () => {
     if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser.");
+      alert("Geolocation not supported.");
       return;
     }
 
@@ -56,59 +107,85 @@ const DriverDashboard = () => {
             const newCoords = pos.coords;
             setLocation(newCoords);
             sendLocationToBackend(newCoords);
-            console.log('data send')
           });
-        }, 30000); // Every 30 seconds
+        }, 30000);
       },
-      (error) => {
-        console.error(error);
+      () => {
         alert("GPS permission denied.");
       }
     );
   };
 
   const stopTracking = () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
+    if (intervalRef.current) clearInterval(intervalRef.current);
   };
 
   const handleToggle = () => {
-    if (!isActive) {
-      startTracking();
-    } else {
-      stopTracking();
-    }
+    if (!isActive) startTracking();
+    else stopTracking();
+
     setIsActive(!isActive);
   };
 
   useEffect(() => {
-    return () => stopTracking(); // Cleanup on unmount
+    return () => stopTracking();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchStats = async () => {
+      try {
+        const res = await fetch("http://localhost:8000/analysis/fleet-stats");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+
+        setStats((prev) => ({
+          ...prev,
+          co2: data.totalCO2 ?? prev.co2,
+          avgSpeed:
+            data.avgSpeed !== undefined && data.avgSpeed !== null
+              ? `${data.avgSpeed} km/h`
+              : prev.avgSpeed,
+          distance: data.totalDistance ?? prev.distance,
+        }));
+      } catch {
+        // ignore transient network errors
+      }
+    };
+
+    fetchStats();
+    const id = setInterval(fetchStats, 30000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []);
+
+  // ==============================
+  // UI
+  // ==============================
 
   return (
     <div className="dashboard-container">
-      {/* Sidebar */}
       <div className="sidebar">
         <div className="sidebar-top">
           <h2 className="logo">FleetSync</h2>
           <div className="profile-section">
             <div className="profile-circle">D</div>
-            <button
-              className="exit-btn"
-              onClick={() => navigate("/")}
-            >
+            <button className="exit-btn" onClick={() => navigate("/")}>
               Exit
             </button>
           </div>
         </div>
       </div>
 
-      {/* Main Dashboard */}
       <div className="main-content">
         <h1>Driver Dashboard</h1>
 
-        <div className="cards">
+        <div className="cards driver-stats">
           <div className="card">
             <h3>Load</h3>
             <p>{stats.load}</p>
@@ -128,18 +205,6 @@ const DriverDashboard = () => {
             <h3>Distance Covered</h3>
             <p>{stats.distance}</p>
           </div>
-
-          <div className="card">
-            <h3>Live Location</h3>
-            {location ? (
-              <p>
-                Lat: {location.latitude.toFixed(8)} <br />
-                Lng: {location.longitude.toFixed(8)}
-              </p>
-            ) : (
-              <p>Not Active</p>
-            )}
-          </div>
         </div>
 
         <button
@@ -148,6 +213,26 @@ const DriverDashboard = () => {
         >
           {isActive ? "Deactivate" : "Activate"}
         </button>
+
+        {/* 🔔 Notifications */}
+        <div className="notification-section">
+          <h2>Notifications</h2>
+
+          {notifications.length === 0 ? (
+            <p className="no-notifications">No notifications yet</p>
+          ) : (
+            notifications.map((note) => (
+              <div key={note.id} className="notification-item">
+                <p>{note.message}</p>
+                <span>{note.time}</span>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="driver-map-section">
+          <DriverMap />
+        </div>
       </div>
     </div>
   );

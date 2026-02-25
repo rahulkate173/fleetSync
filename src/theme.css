@@ -1,0 +1,93 @@
+:root[data-theme="dark"] {
+  --bg-main: #222831;
+  --bg-alt: #393e46;
+  --accent-color: #00adb5;
+  --text-main: #eeeeee;
+  --border-color: #393e46;
+}
+
+:root[data-theme="light"] {
+  --bg-main: #f4f5f7;
+  --bg-alt: #ffffff;
+  --accent-color: #2563eb;
+  --text-main: #111827;
+  --border-color: #e5e7eb;
+}
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+}
+
+/* Generic containers */
+[data-theme="dark"] .home,
+[data-theme="dark"] .dashboard,
+[data-theme="dark"] .dashboard-container,
+[data-theme="dark"] .order-layout,
+[data-theme="dark"] .driver-login-page,
+[data-theme="dark"] .shipment-page,
+[data-theme="dark"] .analysis-page,
+[data-theme="dark"] .setting-page,
+[data-theme="dark"] .notification-page {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+}
+
+[data-theme="dark"] .navbar,
+[data-theme="dark"] .sidebar {
+  background-color: var(--bg-alt);
+  color: var(--text-main);
+}
+
+[data-theme="dark"] .card,
+[data-theme="dark"] .order-card,
+[data-theme="dark"] .driver-login-card,
+[data-theme="dark"] .map-card,
+[data-theme="dark"] .shipment-details,
+[data-theme="dark"] .truck-capacity,
+[data-theme="dark"] .chat,
+[data-theme="dark"] .trends,
+[data-theme="dark"] .map-section,
+[data-theme="dark"] .details-panel,
+[data-theme="dark"] .analysis-content .card,
+[data-theme="dark"] .chart-section,
+[data-theme="dark"] .settings-form,
+[data-theme="dark"] .table-container {
+  background-color: var(--bg-alt);
+  color: var(--text-main);
+}
+
+/* Buttons */
+button,
+.primary-btn,
+.secondary-btn,
+.order-btn,
+.driver-login-btn,
+.status-btn,
+.exit-btn {
+  background-color: var(--accent-color);
+  color: #ffffff;
+}
+
+/* Home features section - dark theme adjustments */
+[data-theme="dark"] .Section2 {
+  background-color: var(--bg-main);
+}
+
+[data-theme="dark"] .sec2Top h2 {
+  color: var(--text-main);
+}
+
+[data-theme="dark"] .sec2Top p {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .feature-section {
+  background-color: var(--bg-alt);
+}
+
+[data-theme="dark"] .feature-section h3,
+[data-theme="dark"] .feature-section p {
+  color: var(--text-main);
+}
+

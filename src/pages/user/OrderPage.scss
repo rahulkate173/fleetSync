@@ -1,7 +1,7 @@
 .order-layout {
   display: flex;
   min-height: 100vh;
-  background-color: #393E46;
+  background-color: var(--bg-main);
 }
 
 .order-content {
@@ -13,7 +13,7 @@
 }
 
 .order-card {
-  background: white;
+  background: #ffffff;
   width: 500px;
   padding: 40px;
   border-radius: 14px;
@@ -25,11 +25,12 @@
 
 .order-card h2 {
   margin: 0;
-  color: #393E46;
+  color: #393e46;
   font-size: 18px;
 }
 
 .order-card input {
+  width: 100%;
   padding: 12px;
   border-radius: 8px;
   border: 1px solid #ccc;
@@ -39,17 +40,40 @@
 }
 
 .order-card input:focus {
-  border-color: #00ADB5;
+  border-color: #00adb5;
   box-shadow: 0 0 0 2px rgba(0, 173, 181, 0.15);
 }
 
+.truck-type-options {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.truck-type-options label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background-color: #f5f5f5;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.truck-type-options input[type="radio"] {
+  accent-color: #00adb5;
+}
+
 .order-btn {
-  margin-top: 15px;
+  margin-top: 20px;
+  width: 100%;
   padding: 14px;
   border-radius: 8px;
   border: none;
-  background-color: #00ADB5;
-  color: white;
+  background-color: #00adb5;
+  color: #ffffff;
   font-weight: 600;
   font-size: 15px;
   cursor: pointer;
@@ -59,4 +83,15 @@
 .order-btn:hover {
   opacity: 0.9;
   transform: translateY(-2px);
+}
+
+@media (max-width: 600px) {
+  .order-content {
+    padding: 20px;
+  }
+
+  .order-card {
+    width: 100%;
+    padding: 24px;
+  }
 }

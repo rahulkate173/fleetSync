@@ -110,9 +110,19 @@
 
 .dashboard {
   display: flex;
-
+  min-height: 100vh;
   background: #f5f6fa;
   font-family: "Poppins", sans-serif;
+}
+
+.dashboard .sidebar {
+  width: 220px;
+  background: #0f172a;
+  color: white;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
 // .sidebar {
@@ -163,6 +173,7 @@
 .main {
   flex: 1;
   padding: 20px;
+  display: flex;
 }
 
 .header {
@@ -191,6 +202,7 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  flex: 1;
 }
 
 
@@ -220,7 +232,18 @@
   gap: 20px;
 }
 
-.card {
+.bottom-section {
+  flex: 1;
+  align-items: stretch;
+}
+
+.bottom-section .trends,
+.bottom-section .chat {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard .card {
   background: white;
   padding: 20px;
   border-radius: 20px;
@@ -254,6 +277,24 @@
   h1 {
     font-size: 48px;
   }
+}
+
+/* Fleet stats cards inside efficiency panel */
+.efficiency .cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.efficiency .card {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: none;
+}
+
+.efficiency .card h4,
+.efficiency .card p {
+  color: #ffffff;
 }
 
 .chat {
@@ -316,7 +357,6 @@ h4{
     overflow-y: auto;
     margin-bottom: 12px;
     border: 1px solid #e2e8f0;
-    max-height: 220px;
 
     // Custom scrollbar
     &::-webkit-scrollbar {

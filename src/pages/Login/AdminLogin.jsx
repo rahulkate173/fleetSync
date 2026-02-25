@@ -113,11 +113,13 @@ function AdminLogin() {
         <p>Secure access to Fleet Sync Dashboard</p>
 
         <SignedOut>
-          <SignIn
-            routing="hash"
-            afterSignInUrl="/dashboard"
-            afterSignUpUrl="/dashboard"
-          />
+          <div className="auth-container">
+            <SignIn
+              routing="hash"
+              afterSignInUrl="/dashboard"
+              afterSignUpUrl="/dashboard"
+            />
+          </div>
         </SignedOut>
 
         <SignedIn>

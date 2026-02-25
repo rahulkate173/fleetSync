@@ -5,9 +5,8 @@
   background: #f4f6f8;
 }
 
-
 /* Sidebar */
-.sidebar {
+.notification-page .sidebar {
   width: 220px;
   background: #0f172a;
   color: white;
@@ -17,15 +16,15 @@
   gap: 15px;
 }
 
-.profile-circle {
+.notification-page .profile-circle {
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: #22c55e;
+  background: #00adb5;
   margin-bottom: 20px;
 }
 
-.sidebar button {
+.notification-page .sidebar button {
   background: transparent;
   border: 1px solid #334155;
   color: white;
@@ -35,24 +34,24 @@
   transition: 0.3s;
 }
 
-.sidebar button:hover,
-.sidebar .active {
-  background: #22c55e;
-  border-color: #22c55e;
+.notification-page .sidebar button:hover,
+.notification-page .sidebar .active {
+  background: #00adb5;
+  border-color: #00adb5;
 }
 
 /* Main Content */
-.notification-content {
+.notification-page .notification-content {
   flex: 1;
   padding: 30px;
 }
 
-.notification-content h2 {
+.notification-page .notification-content h2 {
   margin-bottom: 20px;
 }
 
 /* Table */
-.table-container {
+.notification-page .table-container {
   background: white;
   padding: 20px;
   border-radius: 16px;
@@ -60,27 +59,28 @@
   overflow-x: auto;
 }
 
-table {
+.notification-page table {
   width: 100%;
   border-collapse: collapse;
 }
 
-thead {
-  background: #22c55e;
+.notification-page thead {
+  background: #00adb5;
   color: white;
 }
 
-th,
-td {
+.notification-page th,
+.notification-page td {
   padding: 12px;
   text-align: left;
 }
 
-tbody tr {
+.notification-page tbody tr {
   border-bottom: 1px solid #e2e8f0;
   transition: 0.2s;
 }
 
-tbody tr:hover {
+.notification-page tbody tr:hover {
   background: #f1f5f9;
 }
+

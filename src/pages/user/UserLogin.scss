@@ -4,46 +4,40 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+  background: linear-gradient(135deg, #111827, #1f2937);
   padding: 20px;
 }
 
-.login-card {
+.user-login-card {
   background: white;
-  padding: 50px 40px;
+  padding: 40px 32px;
   border-radius: 20px;
   width: 420px;
-  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.4);
+  max-width: 100%;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
   text-align: center;
-  animation: fadeIn 0.6s ease-in-out;
+  animation: fadeInUser 0.6s ease-in-out;
 }
 
-.login-card h2 {
-  font-size: 28px;
-  margin-bottom: 10px;
+.user-login-card h2 {
+  font-size: 26px;
+  margin-bottom: 8px;
 }
 
-.login-card p {
-  color: #666;
+.user-login-card p {
+  color: #6b7280;
   font-size: 14px;
-  margin-bottom: 25px;
+  margin-bottom: 24px;
 }
 
 .auth-container {
-  margin-top: 20px;
+  margin-top: 12px;
 }
 
-/* Redirect text */
-.redirect-text {
-  font-weight: 600;
-  color: #2c5364;
-}
-
-/* Smooth fade animation */
-@keyframes fadeIn {
+@keyframes fadeInUser {
   from {
     opacity: 0;
-    transform: translateY(30px);
+    transform: translateY(24px);
   }
   to {
     opacity: 1;

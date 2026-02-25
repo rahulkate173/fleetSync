@@ -1,22 +1,96 @@
+import { useState } from "react";
 import UserSidebar from "./UserSidebar";
 import "./EtaPage.scss";
+import { api } from "../../api/config";
+
+const STAGES = ["departed", "middle", "loc", "delivered"];
 
 const EtaPage = () => {
+  const [referenceId, setReferenceId] = useState("");
+  const [shipment, setShipment] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleTrack = async () => {
+    if (!referenceId.trim()) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(api.track(referenceId.trim()));
+      const data = await res.json();
+      if (data.error) {
+        setError(data.error);
+        setShipment(null);
+      } else {
+        setShipment(data);
+        setError(null);
+      }
+    } catch (e) {
+      setError("Unable to fetch. Is the server running?");
+      setShipment(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStepIndex = () => {
+    if (!shipment) return -1;
+    const idx = shipment.status_code ?? STAGES.indexOf(shipment.current_stage ?? "");
+    return Math.max(0, idx);
+  };
+
   return (
     <div className="eta-layout">
       <UserSidebar />
 
       <div className="eta-content">
         <div className="eta-card">
-          <h2>Enter Referral</h2>
-          <input placeholder="Referral code" />
+          <h2>Delivery Status</h2>
+          <p className="eta-sub">Track your shipment from departed to delivered</p>
 
-          <h3>Captcha</h3>
-          <input placeholder="Enter captcha" />
+          <div className="eta-input">
+            <input
+              type="text"
+              placeholder="Enter Reference ID (e.g. REF-123)"
+              value={referenceId}
+              onChange={(e) => setReferenceId(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleTrack()}
+            />
+            <button onClick={handleTrack} disabled={loading || !referenceId.trim()}>
+              {loading ? "Fetching..." : "Track"}
+            </button>
+          </div>
 
-          <button className="eta-btn">
-            Confirm
-          </button>
+          {error && <div className="eta-error">{error}</div>}
+
+          {shipment && !error && (
+            <div className="eta-result">
+              <h3>Reference ID: {shipment.reference_id}</h3>
+              <p className="current-stage">
+                Current: <strong>{shipment.current_stage}</strong>
+              </p>
+
+              <div className="timeline">
+                {STAGES.map((step, index) => {
+                  const currentStep = getStepIndex();
+                  return (
+                    <div
+                      key={step}
+                      className={`timeline-step ${index <= currentStep ? "active" : ""}`}
+                    >
+                      <div className="circle"></div>
+                      <p>{step}</p>
+                      {shipment.timestamps && shipment.timestamps[step] && (
+                        <small className="timestamp">
+                          {new Date(shipment.timestamps[step]).toLocaleString()}
+                        </small>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

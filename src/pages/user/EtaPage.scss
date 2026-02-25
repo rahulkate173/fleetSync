@@ -1,7 +1,7 @@
 .eta-layout {
   display: flex;
   min-height: 100vh;
-  background-color: #393E46;
+  background-color: var(--bg-main);
 }
 
 .eta-content {
@@ -13,7 +13,7 @@
 }
 
 .eta-card {
-  background: white;
+  background: var(--bg-alt);
   width: 450px;
   padding: 40px;
   border-radius: 14px;
@@ -27,7 +27,7 @@
 .eta-card h2,
 .eta-card h3 {
   margin: 0;
-  color: #393E46;
+  color: var(--text-main);
 }
 
 .eta-card input {
@@ -44,20 +44,116 @@
   box-shadow: 0 0 0 2px rgba(0, 173, 181, 0.15);
 }
 
-.eta-btn {
-  margin-top: 15px;
-  padding: 14px;
-  border-radius: 8px;
-  border: none;
-  background-color: #00ADB5;
-  color: white;
-  font-weight: 600;
-  font-size: 15px;
-  cursor: pointer;
-  transition: 0.3s ease;
+.eta-sub {
+  margin-top: 8px;
+  margin-bottom: 20px;
+  color: #64748b;
+  font-size: 14px;
 }
 
-.eta-btn:hover {
-  opacity: 0.9;
-  transform: translateY(-2px);
+.eta-input {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+
+  input {
+    flex: 1;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    outline: none;
+    font-size: 14px;
+  }
+
+  button {
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: none;
+    background-color: #00adb5;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.2s ease;
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.eta-error {
+  margin-top: 8px;
+  margin-bottom: 8px;
+  color: #c62828;
+  background: #ffebee;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.eta-result {
+  margin-top: 16px;
+}
+
+.timestamp {
+  display: block;
+  font-size: 11px;
+  color: #888;
+  margin-top: 4px;
+}
+
+.current-stage {
+  margin: 8px 0 20px;
+  color: #2e7d32;
+}
+
+/* Timeline reused from Track, simplified */
+.timeline {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  position: relative;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 15px;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: #ddd;
+    z-index: 0;
+  }
+
+  .timeline-step {
+    position: relative;
+    text-align: center;
+    flex: 1;
+    z-index: 1;
+
+    .circle {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #ddd;
+      margin: 0 auto 8px;
+      transition: 0.3s;
+    }
+
+    p {
+      font-size: 13px;
+      text-transform: capitalize;
+    }
+
+    &.active {
+      .circle {
+        background: #2e7d32;
+      }
+    }
+  }
+}
+label{
+  color: black;
 }
