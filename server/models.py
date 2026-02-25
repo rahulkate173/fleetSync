@@ -1,7 +1,9 @@
-from sqlalchemy import Column, Integer, String, Float, Numeric, DateTime, Text
+from sqlalchemy import Column, Integer, String, Float, Numeric, DateTime, Text, DECIMAL, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
 from sqlalchemy.sql import func
 from database import Base
-
+from datetime import datetime
 
 class Profile(Base):
     __tablename__ = "profile"
@@ -63,3 +65,42 @@ class Alert(Base):
     severity = Column(String(20))
     message = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+# Add these models to your existing models.py
+class Order(Base):
+    __tablename__ = "orders"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    order_id = Column(String, unique=True, index=True)
+    user_id = Column(String)
+    pickup_address = Column(String)
+    delivery_address = Column(String)
+    pickup_lat = Column(DECIMAL(10,8))
+    pickup_lon = Column(DECIMAL(11,8))
+    delivery_lat = Column(DECIMAL(10,8))
+    delivery_lon = Column(DECIMAL(11,8))
+    load_type = Column(String)
+    payload_weight = Column(DECIMAL(10,2))
+    status = Column(String, default="pending")
+    assigned_truck_id = Column(UUID(as_uuid=True), ForeignKey("trucks.id"))
+    assigned_driver_id = Column(UUID(as_uuid=True), ForeignKey("drivers.id"))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Notification(models.Base):
+    __tablename__ = "notifications"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    driver_id = Column(String(50), nullable=False, index=True)
+    truck_id = Column(String(50), nullable=True)
+    message = Column(String(500), nullable=False)
+    type = Column(String(20), default="info")  # info, warning, critical
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    read = Column(Boolean, default=False)  # 🔥 FIXED: Boolean (capital B)
+    created_by = Column(String(50), default="admin")
+    
+    __table_args__ = (
+        {"schema": "public"}  # For Supabase/PostgreSQL
+    )
+

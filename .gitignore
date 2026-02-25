@@ -29,3 +29,16 @@ pathway/pathway-env
 public/leaf.png
 server/server-env
 frontend-backend-mapping.node_modules
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Node
+node_modules/
+
+# Environment
+.env
+.env.example
