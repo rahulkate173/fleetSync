@@ -86,3 +86,21 @@ class Order(Base):
     assigned_driver_id = Column(UUID(as_uuid=True), ForeignKey("drivers.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Notification(models.Base):
+    __tablename__ = "notifications"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    driver_id = Column(String(50), nullable=False, index=True)
+    truck_id = Column(String(50), nullable=True)
+    message = Column(String(500), nullable=False)
+    type = Column(String(20), default="info")  # info, warning, critical
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    read = Column(Boolean, default=False)  # 🔥 FIXED: Boolean (capital B)
+    created_by = Column(String(50), default="admin")
+    
+    __table_args__ = (
+        {"schema": "public"}  # For Supabase/PostgreSQL
+    )
+
