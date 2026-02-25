@@ -19,6 +19,8 @@ import database
 import hashlib
 import secrets
 from typing import Optional
+from datetime import datetime, timezone
+
 
 class DriverLogin(BaseModel):
     username: str
@@ -124,7 +126,7 @@ async def _produce_to_kafka(vehicle_id: str, lat: float, lon: float, speed_kmh: 
     global producer
     
     payload = {
-        "update_timestamp": datetime.utcnow().isoformat() + "Z",
+        "update_timestamp": datetime.now(timezone.utc).isoformat(),
         "vehicle_id": vehicle_id,
         "reference_id": reference_id,
         "gps": {
@@ -550,8 +552,10 @@ async def get_all_admin_alerts_for_driver(truck_id: str, db: Session = Depends(g
 
 
 @app.post("/ingest/pathway", tags=["System"])
-async def ingest_pathway(data: PathwayUpdate, db: Session = Depends(get_db)):
+async def ingest_pathway(data: PathwayUpdate, db: Session = Depends(get_db),request: Request = None):
     """Pathway posts processed data here after Kafka consumption"""
+    client_ip = request.client.host if request else "unknown"
+    print(f"[INGEST] From: {client_ip} | Vehicle: {data.vehicle_id} | GPS: {data.gps.lat}, {data.gps.lon}")
     print(f"[INGEST] Vehicle: {data.vehicle_id} | GPS: {data.gps.lat}, {data.gps.lon}")
     fleet_state[data.vehicle_id] = data.model_dump()
     if data.reference_id:
