@@ -1,0 +1,37 @@
+.user-sidebar {
+  width: 230px;
+  background-color: white;
+  padding: 35px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  min-height: 100vh;
+  box-shadow: 4px 0 10px rgba(0, 0, 0, 0.05);
+}
+
+.user-profile-circle {
+  width: 75px;
+  height: 75px;
+  border-radius: 50%;
+  background-color: #e0e0e0;
+  margin-bottom: 30px;
+}
+
+.user-nav-item {
+  text-decoration: none;
+  padding: 12px 15px;
+  border-radius: 8px;
+  font-weight: 600;
+  color: #393E46;
+  transition: all 0.3s ease;
+}
+
+.user-nav-item:hover {
+  background-color: #f3f3f3;
+}
+
+.user-nav-item.active {
+  background-color: #00ADB5;
+  color: white;
+  box-shadow: 0 4px 10px rgba(0, 173, 181, 0.3);
+}

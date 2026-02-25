@@ -9,6 +9,10 @@ import Analysis from './pages/Analysis/Analysis'
 import Notification from './pages/Notification/Notification'
 import Setting from './pages/Settingspage/Settings'
 import AdminLogin from './pages/Login/AdminLogin'
+import OrderPage from './pages/User/OrderPage'
+import EtaPage from './pages/User/EtaPage'
+import UserLogin from './pages/user/UserLogin'
+
 
 
 const App = () => {
@@ -26,6 +30,10 @@ const App = () => {
                   <Route path="/notification" element={<Notification/>} />
                   <Route path="/settings" element={<Setting/>} />
                    <Route path="/login" element={<AdminLogin/>} />
+                     <Route path="/user" element={<UserLogin/>} />
+                       <Route path="/user/order" element={<OrderPage/>} />
+                         <Route path="/user/eta" element={<EtaPage/>} />
+
            
       </Routes>
     </div>

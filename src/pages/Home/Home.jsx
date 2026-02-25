@@ -105,8 +105,8 @@ useEffect(() => {
           </p>
 
           <div className="hero-buttons">
-            <Link to="/track" className="primary-btn">
-              Start Tracking
+            <Link to="/user/order" className="primary-btn">
+              user
             </Link>
             <Link to="/login" className="secondary-btn">
               Admin Login
