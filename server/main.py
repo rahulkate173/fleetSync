@@ -3,7 +3,7 @@ import asyncio
 from typing import List, Dict, Optional
 from contextlib import asynccontextmanager
 from datetime import datetime
-
+from aiokafka import AIOKafkaProducer
 from fastapi import FastAPI, Depends, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -18,12 +18,6 @@ import models
 import database
 import hashlib
 import secrets
-# ======================================================================
-# GLOBAL KAFKA PRODUCER - FIXED: SINGLE INSTANCE, CORRECT TOPIC
-# ===================================================================
-# ======================================================================
-# PYDANTIC MODELS
-# ==========================================
 from typing import Optional
 
 class DriverLogin(BaseModel):
@@ -37,7 +31,7 @@ class DriverResponse(BaseModel):
     truck_id: str
     token: str  # Simple JWT-like token
 
-class ChatRequest(BaseModel):  # ✅ Pydantic model for JSON body
+class ChatRequest(BaseModel):  
     query: str
 class GPSData(BaseModel):
     lat: float
@@ -72,9 +66,6 @@ fleet_state: Dict[str, dict] = {}
 ref_tracking: Dict[str, dict] = {}
 map_connections: List[WebSocket] = {}
 
-# ======================================================================
-# DATABASE & APP SETUP
-# ======================================================================
 def get_db():
     db = database.SessionLocal()
     try:
@@ -86,7 +77,7 @@ producer = None  # Global producer instance
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """✅ FIXED: Single lifespan handles DB + Kafka startup"""
+    """FIXED: Single lifespan handles DB + Kafka startup"""
     global producer
     
     # STARTUP
@@ -117,7 +108,7 @@ async def lifespan(app: FastAPI):
     if producer:
         await producer.stop()
         print("Kafka producer STOPPED")
-# ✅ FIXED: Proper lifespan + Kafka integration
+        
 app = FastAPI(title="fleetSync API", lifespan=lifespan)
 
 app.add_middleware(
@@ -128,9 +119,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ======================================================================
-# FIXED KAFKA PRODUCER FUNCTION
-# ======================================================================
+
 async def _produce_to_kafka(vehicle_id: str, lat: float, lon: float, speed_kmh: float, temperature: Optional[float], reference_id: Optional[str]):
     global producer
     
@@ -149,10 +138,6 @@ async def _produce_to_kafka(vehicle_id: str, lat: float, lon: float, speed_kmh: 
     await producer.send_and_wait("fleetsync-gps-3", value=payload, key=vehicle_id.encode("utf-8"))
     print(f"[PRODUCER] Sent vehicle {vehicle_id}")
 
-
-# ======================================================================
-# ROUTES (unchanged except /truck/gps)
-# ======================================================================
 @app.get("/dashboard/map/data",tags=["Admin"])
 async def get_map_data():
     return list(fleet_state.values())
@@ -340,26 +325,21 @@ import json
 
 @app.post("/chat/admin", tags=["Admin"])
 async def admin_chat(request: Request):
-    """🚀 Works with CURL + FRONTEND - Handles ALL input formats"""
     try:
-        # ✅ READ RAW BYTES - Windows safe
         body_bytes = await request.body()
         body_text = body_bytes.decode('utf-8')
         
         print(f"DEBUG RAW: {body_text[:100]}...")  # Debug log
         
-        # ✅ TRY JSON FIRST (curl format)
         try:
             body_json = json.loads(body_text)
             query = body_json.get("query", body_text) if isinstance(body_json, dict) else body_text
         except json.JSONDecodeError:
-            # ✅ FALLBACK: Direct string (frontend format)
             query = body_text.strip()
         
         if not query:
             return {"error": "No query", "trucks": len(fleet_state)}
         
-        # ✅ LIVE FLEET DATA (your Kafka flow)
         trucks = []
         for vid, data in fleet_state.items():
             trucks.append({
@@ -369,7 +349,6 @@ async def admin_chat(request: Request):
                 "speed": data["gps"]["speed_kmh"]
             })
         
-        # ✅ SMART RESPONSES
         q = query.lower()
         found_truck = None
         for truck in trucks:
@@ -378,14 +357,14 @@ async def admin_chat(request: Request):
                 break
         
         if found_truck:
-            answer = f"✅ {found_truck['id']}: {found_truck['lat']}°N, {found_truck['lon']}°E, {found_truck['speed']}kmh"
+            answer = f"{found_truck['id']}: {found_truck['lat']}°N, {found_truck['lon']}°E, {found_truck['speed']}kmh"
         elif "how" in q or "count" in q:
-            answer = f"📊 {len(fleet_state)} trucks active"
+            answer = f"{len(fleet_state)} trucks active"
         elif "list" in q:
             names = [t["id"] for t in trucks[:3]]
-            answer = f"🚛 Active: {', '.join(names)}"
+            answer = f"Active: {', '.join(names)}"
         else:
-            answer = f"🗺️ {len(fleet_state)} trucks live. Try truck names or 'how many'"
+            answer = f"{len(fleet_state)} trucks live. Try truck names or 'how many'"
         
         return {
             "answer": answer,
@@ -440,7 +419,7 @@ def track_by_reference(reference_id: str, db: Session = Depends(get_db)):
 async def truck_gps(data: TruckGpsInput):
     """Kafka-first, fallback only on REAL errors"""
     try:
-        print(f"[KAFKA] Attempting: vehicle {data.vehicle_id}")  # ✅ No emoji
+        print(f"[KAFKA] Attempting: vehicle {data.vehicle_id}") 
         await _produce_to_kafka(
             data.vehicle_id, data.lat, data.lon, data.speed_kmh, data.temperature, data.reference_id
         )
@@ -583,15 +562,8 @@ async def ingest_pathway(data: PathwayUpdate, db: Session = Depends(get_db)):
         }
     return {"status": "Live & DB Updated"}
 
-# ======================================================================
-# ADD MISSING IMPORTS at top (after other imports)
-# ======================================================================
-# ADD THESE LINES after your existing imports:
-from aiokafka import AIOKafkaProducer
 
-# ======================================================================
-# REST OF YOUR ROUTES (unchanged - dashboard, alerts, simulation, etc.)
-# ======================================================================
+
 @app.get("/dashboard/summary", tags=["Admin"])
 def dashboard_summary():
     active = len(fleet_state)
@@ -645,7 +617,7 @@ async def get_fleet_stats():
     
     total_vehicles = len(fleet_state)
     
-    # ✅ Use PROCESSED fleet_state fields
+    # Use PROCESSED fleet_state fields
     valid_gps_count = 0
     total_speed = 0
     total_temp = 0
@@ -671,7 +643,7 @@ async def get_fleet_stats():
         if gps.get("temperature", 0) > 25:
             high_temp_count += 1
     
-    # 🚀 COMPREHENSIVE METRICS
+    # COMPREHENSIVE METRICS
     active_vehicles = valid_gps_count
     avg_speed = total_speed / valid_gps_count if valid_gps_count else 0
     avg_temp = total_temp / valid_gps_count if valid_gps_count else 0
@@ -691,7 +663,6 @@ async def get_fleet_stats():
     }
 @app.get("/analysis/speed-trends", tags=["Graph"])
 async def get_speed_trends():
-    """🚀 DYNAMIC speed trends from live fleet_state (last 24hr)"""
     
     # Aggregate speed by hour from fleet_state
     hourly_speeds = defaultdict(list)
@@ -828,7 +799,7 @@ async def create_order(request: OrderRequest):
     # 5. Create order
     order_data = {
         "order_id": order_id,
-        "user_id": user_id,  # ✅ Valid UUID from users table
+        "user_id": user_id,  
         "pickup_address": request.pickup_address,
         "delivery_address": request.delivery_address,
         "pickup_lat": pickup_lat, 
@@ -866,7 +837,7 @@ async def create_order(request: OrderRequest):
 
 
 
-# 📊 DASHBOARD
+# DASHBOARD
 @app.get("/api/orders", tags=["Orders"])
 def get_orders(status: str = None, limit: int = 50):
     # Specific fields including pickup/delivery locations
@@ -883,7 +854,7 @@ def get_orders(status: str = None, limit: int = 50):
     data = query.execute()
     
     return {
-        "success": True,  # ✅ Added
+        "success": True,  # Added
         "orders": data.data,
         "stats": {
             "total": len(data.data),
@@ -893,7 +864,7 @@ def get_orders(status: str = None, limit: int = 50):
     }
 
 
-# 🧪 SAMPLE TRUCKS
+# SAMPLE TRUCKS
 @app.post("/api/trucks/sample", tags=["Test"])
 def add_sample_trucks():
     trucks = [
@@ -913,7 +884,7 @@ def add_sample_trucks():
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
-# 🚛 TRUCK DRIVER LOGIN
+#  TRUCK DRIVER LOGIN
 @app.post("/api/drivers/login", tags=["Truck Driver"], response_model=dict)
 async def driver_login(request: DriverLogin):
     # Query driver by username
