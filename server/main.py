@@ -1103,6 +1103,211 @@ async def notification_stats():
         "online_percentage": f"{(connected_drivers/len(alerts_db)*100):.1f}%" if alerts_db else "0%"
     }
 
+# === SIMULATION ROUTES (tag: "Simulate")[Ai generated ] ===
+from typing import List
+import asyncio
+from datetime import datetime, timezone
+
+# NAR Pune Coordinates (Nagar Road)
+NAR_PUNE_DRIVERS = {
+    "DRIVER-NAR001": {"name": "Ramesh", "truck_id": "TRUCK-NAR001", "lat": 18.5390, "lon": 73.8780},
+    "DRIVER-NAR002": {"name": "Suresh", "truck_id": "TRUCK-NAR002", "lat": 18.5402, "lon": 73.8795},
+    "DRIVER-NAR003": {"name": "Mahesh", "truck_id": "TRUCK-NAR003", "lat": 18.5385, "lon": 73.8772}
+}
+
+class SimulateDriver(BaseModel):
+    driver_id: str
+    active: bool = True
+
+class AssignOrder(BaseModel):
+    driver_id: str
+    pickup: str
+    delivery: str
+    load_type: str = "dry"
+
+@app.post("/simulate/drivers/activate", tags=["Simulate"])
+async def activate_nar_drivers():
+    """ Activate 3 NAR Pune drivers + send initial GPS"""
+    activated = []
+    
+    for driver_id, info in NAR_PUNE_DRIVERS.items():
+        # 1. Add to Supabase trucks table
+        truck_data = {
+            "truck_id": info["truck_id"],
+            "driver_name": info["name"],
+            "status": "free",
+            "truck_type": "dry",
+            "current_lat": info["lat"],
+            "current_lon": info["lon"]
+        }
+        supabase.table("trucks").upsert(truck_data).execute()
+        
+        # 2. Send GPS to Kafka + fleet_state
+        await _produce_to_kafka(
+            vehicle_id=info["truck_id"],
+            lat=info["lat"], 
+            lon=info["lon"],
+            speed_kmh=25.5,
+            temperature=28.2,
+            reference_id=None
+        )
+        
+        activated.append({
+            "driver_id": driver_id,
+            "truck_id": info["truck_id"],
+            "location": "NAR Pune",
+            "lat": info["lat"], 
+            "lon": info["lon"],
+            "status": "ACTIVE - GPS sent"
+        })
+        
+        print(f"[SIMULATE] Activated {driver_id} at NAR Pune")
+    
+    return {"activated": activated, "total": 3}
+
+@app.get("/simulate/drivers/status", tags=["Simulate"])
+async def get_simulation_status():
+    """ Check which NAR Pune drivers are active"""
+    status = []
+    for driver_id, info in NAR_PUNE_DRIVERS.items():
+        truck_id = info["truck_id"]
+        is_live = truck_id in fleet_state
+        status.append({
+            "driver_id": driver_id,
+            "truck_id": truck_id,
+            "name": info["name"],
+            "location": "NAR Pune",
+            "online": is_live,
+            "current_gps": fleet_state.get(truck_id, {}).get("gps", None),
+            "supabase_status": "free"  # Check live from Supabase if needed
+        })
+    return {"nar_pune_drivers": status}
+
+@app.post("/simulate/gps/{driver_id}", tags=["Simulate"])
+async def simulate_gps_movement(driver_id: str):
+    """🎮 Send moving GPS for specific driver (NAR Pune route)"""
+    if driver_id not in NAR_PUNE_DRIVERS:
+        return {"error": "Driver not found in NAR Pune"}
+    
+    info = NAR_PUNE_DRIVERS[driver_id]
+    truck_id = info["truck_id"]
+    
+    # Simulate movement along NAR Pune route
+    movements = [
+        (info["lat"], info["lon"], 28.5, 29.1),      # Start
+        (info["lat"]+0.001, info["lon"]+0.002, 35.2, 30.5),  # Moving
+        (info["lat"]+0.003, info["lon"]+0.005, 42.8, 31.2),  # Faster
+        (info["lat"]+0.002, info["lon"]+0.003, 15.3, 32.8),  # Slow turn
+    ]
+    
+    # Send 4 GPS updates rapidly
+    for i, (lat, lon, speed, temp) in enumerate(movements):
+        await _produce_to_kafka(truck_id, lat, lon, speed, temp, None)
+        await asyncio.sleep(0.5)  # Realistic interval
+    
+    return {"status": "GPS simulation complete", "updates": 4, "final_pos": f"{lat:.4f},{lon:.4f}"}
+
+@app.post("/simulate/order/{driver_id}", tags=["Simulate"])
+async def assign_simulation_order(driver_id: str, order: AssignOrder):
+    """📦 Assign order to specific NAR Pune driver"""
+    if driver_id not in NAR_PUNE_DRIVERS:
+        return {"error": f"Driver {driver_id} not in NAR Pune simulation"}
+    
+    info = NAR_PUNE_DRIVERS[driver_id]
+    truck_id = info["truck_id"]
+    
+    # 1. Create order (same logic as /api/orders)
+    pickup_lat, pickup_lon = await geocode_address(f"{order.pickup}, Pune")
+    delivery_lat, delivery_lon = await geocode_address(f"{order.delivery}, Pune")
+    
+    order_id = f"SIM-ORD-{uuid.uuid4().hex[:6].upper()}"
+    user_id = "SIM-USER"
+    
+    # Create user first
+    user_data = {"id": str(uuid.uuid4()), "name": user_id}
+    supabase.table("users").upsert(user_data).execute()
+    user = supabase.table("users").select("id").eq("name", user_id).execute().data[0]
+    
+    # Create order assigned to this driver
+    order_data = {
+        "order_id": order_id,
+        "user_id": user["id"],
+        "pickup_address": order.pickup,
+        "delivery_address": order.delivery,
+        "pickup_lat": pickup_lat, "pickup_lon": pickup_lon,
+        "delivery_lat": delivery_lat, "delivery_lon": delivery_lon,
+        "load_type": order.load_type,
+        "payload_weight": 1500,
+        "status": "assigned",
+        "assigned_truck_id": truck_id,  # Force assign
+        "assigned_driver_name": info["name"],
+        "reference_id": f"REF-{order_id}"  # Trackable
+    }
+    
+    supabase.table("orders").insert(order_data).execute()
+    
+    # 2. Update truck status to busy
+    supabase.table("trucks").update({"status": "busy"}).eq("truck_id", truck_id).execute()
+    
+    # 3. Send notification to driver
+    await send_driver_alert(AlertRequest(
+        driver_id=driver_id,
+        message=f" NEW ORDER {order_id}: {order.pickup} → {order.delivery}",
+        type="critical",
+        truck_id=truck_id
+    ))
+    
+    return {
+        "success": True,
+        "order_id": order_id,
+        "driver": driver_id,
+        "truck": truck_id,
+        "pickup": f"{pickup_lat:.4f}, {pickup_lon:.4f}",
+        "delivery": f"{delivery_lat:.4f}, {delivery_lon:.4f}",
+        "notification_sent": True
+    }
+
+@app.post("/simulate/full-scenario", tags=["Simulate"])
+async def run_complete_simulation():
+    """🎬 Run FULL simulation: Activate → GPS → Assign Order"""
+    
+    # Step 1: Activate all 3 drivers
+    await activate_nar_drivers()
+    await asyncio.sleep(1)
+    
+    # Step 2: Send GPS movement for all
+    gps_tasks = []
+    for driver_id in NAR_PUNE_DRIVERS.keys():
+        gps_tasks.append(simulate_gps_movement(driver_id))
+    await asyncio.gather(*gps_tasks, return_exceptions=True)
+    await asyncio.sleep(2)
+    
+    # Step 3: Assign order to first driver
+    order_result = await assign_simulation_order(
+        driver_id="DRIVER-NAR001",
+        order=AssignOrder(
+            driver_id="DRIVER-NAR001",
+            pickup="Phoenix Mall",
+            delivery="Magarpatta City",
+            load_type="dry"
+        )
+    )
+    
+    return {
+        "status": "COMPLETE SIMULATION RUN",
+        "steps": {
+            "drivers_activated": 3,
+            "gps_updates_sent": 12,  # 4 each
+            "order_assigned": order_result["order_id"]
+        },
+        "check": {
+            "map_data": f"http://localhost:8000/dashboard/map/data",
+            "driver_alerts": f"http://localhost:8000/alerts/DRIVER-NAR001",
+            "orders": f"http://localhost:8000/api/orders?limit=5"
+        }
+    }
+
+
 
 if __name__ == "__main__":
     import uvicorn
