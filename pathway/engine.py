@@ -9,6 +9,8 @@ from datetime import datetime
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 load_dotenv()
+import sys
+sys.stdout.reconfigure(line_buffering=True)
 
 KAFKA_BOOTSTRAP = "localhost:9092"        
 SERVER_URL = "http://localhost:8000"      
@@ -45,7 +47,7 @@ async def consume_and_post():
         bootstrap_servers=KAFKA_BOOTSTRAP,
         value_deserializer=safe_json_deserializer,
         group_id="pathway-fleetsync",
-        auto_offset_reset="latest",
+        auto_offset_reset="earliest",
     )
 
     await consumer.start()
@@ -61,8 +63,10 @@ async def consume_and_post():
             lat = gps.get("lat", 0)
             lon = gps.get("lon", 0)
             temp = gps.get("temperature")
+            print(f"[Pathway] LIVE: vehicle={data.get('vehicle_id', 'unknown')} lat={lat} lon={lon}")
 
             if not is_valid_gps(lat, lon, temp):
+                print(f"[Pathway] SKIPPED: invalid GPS {lat},{lon}")
                 continue
 
             payload = {
