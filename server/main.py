@@ -16,14 +16,26 @@ import json
 import csv
 import models
 import database
-
+import hashlib
+import secrets
 # ======================================================================
 # GLOBAL KAFKA PRODUCER - FIXED: SINGLE INSTANCE, CORRECT TOPIC
 # ===================================================================
 # ======================================================================
 # PYDANTIC MODELS
-# ======================================================================
-from pydantic import BaseModel
+# ==========================================
+from typing import Optional
+
+class DriverLogin(BaseModel):
+    username: str
+    password: str
+
+class DriverResponse(BaseModel):
+    id: str
+    username: str
+    driver_name: str
+    truck_id: str
+    token: str  # Simple JWT-like token
 
 class ChatRequest(BaseModel):  # ✅ Pydantic model for JSON body
     query: str
@@ -894,6 +906,46 @@ def add_sample_trucks():
         supabase.table("trucks").upsert(truck).execute()
     
     return {"added": len(trucks)}
+
+
+
+# Helper to hash password (simple for demo)
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
+# 🚛 TRUCK DRIVER LOGIN
+@app.post("/api/drivers/login", tags=["Truck Driver"], response_model=dict)
+async def driver_login(request: DriverLogin):
+    # Query driver by username
+    drivers = supabase.table("drivers").select("*").eq("username", request.username).execute()
+    
+    if not drivers.data:
+        return {"error": "Invalid credentials"}, 401
+    
+    driver = drivers.data[0]
+    
+    # Verify password
+    if driver["password_hash"] != hash_password(request.password):
+        return {"error": "Invalid credentials"}, 401
+    
+    # Generate simple token
+    token = secrets.token_urlsafe(32)
+    
+    # Update driver's token
+    supabase.table("drivers").update({"token": token}).eq("id", driver["id"]).execute()
+    
+    return {
+        "success": True,
+        "message": "Login successful",
+        "driver": {
+            "id": driver["id"],
+            "username": driver["username"],
+            "driver_name": driver["driver_name"],
+            "truck_id": driver["truck_id"],
+            "token": token
+        }
+    }, 200
+
 
 if __name__ == "__main__":
     import uvicorn
