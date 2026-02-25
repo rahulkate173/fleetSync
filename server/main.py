@@ -79,8 +79,12 @@ async def lifespan(app: FastAPI):
     
     # STARTUP
     print("Starting fleetSync...")
-    models.Base.metadata.create_all(bind=database.engine)
-    
+    try:
+        print("Creating SQLAlchemy tables...")
+        models.Base.metadata.create_all(bind=database.engine)
+        print(" SQLAlchemy tables ready")
+    except Exception as e:
+        print(f"Some tables missing (OK): {e}")
     # Kafka producer startup
     try:
         from aiokafka import AIOKafkaProducer
@@ -731,6 +735,165 @@ async def get_speed_trends():
             "tension": 0.4  # Smooth curve
         }]
     }
+
+# ===== DIRECT ASSIGNMENT TICKETING =====
+from supabase import create_client
+import httpx
+import uuid
+import os
+
+supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+
+class OrderRequest(BaseModel):
+    pickup_address: str
+    delivery_address: str
+    load_type: str  # dry, reefer, fragile
+    payload_weight: float = 1000
+    user_id: str = "USER001"
+
+def haversine(lat1, lon1, lat2, lon2):
+    from math import radians, sin, cos, sqrt, atan2
+    R = 6371
+    dlat, dlon = radians(lat2-lat1), radians(lon2-lon1)
+    a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
+    return R * 2 * atan2(sqrt(a), sqrt(1-a))
+
+async def geocode_address(address: str) -> tuple[float, float]:
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            url = "https://nominatim.openstreetmap.org/search"
+            params = {"q": f"{address}, Pune", "format": "json", "limit": 1}
+            resp = await client.get(url, params=params, headers={"User-Agent": "FleetSync"})
+            data = resp.json()
+            if data: 
+                lat, lon = float(data[0]["lat"]), float(data[0]["lon"])
+                print(f"Geocoded: {lat:.4f}, {lon:.4f}")  # Safe print
+                return lat, lon
+    except Exception as e:
+        print(f"Geocoding failed: {str(e)}")  # Safe print
+    return 18.5204, 73.8567
+
+
+@app.post("/api/orders", tags=["Orders"])
+async def create_order(request: OrderRequest):
+    if not supabase:
+        return {"error": "Supabase not configured"}
+    
+    # 1. CREATE USER if doesn't exist (FIXES foreign key!)
+    user_data = {
+        "id": str(uuid.uuid4()),
+        "name": request.user_id,  # "USER001" → name
+        "phone": f"+91-9{request.user_id[-8:]}"
+    }
+    supabase.table("users").upsert(user_data).execute()
+    
+    # 2. Geocode
+    pickup_lat, pickup_lon = await geocode_address(request.pickup_address)
+    delivery_lat, delivery_lon = await geocode_address(request.delivery_address)
+    
+    # 3. Find user_id (just created)
+    user = supabase.table("users").select("id").eq("name", request.user_id).execute().data[0]
+    user_id = user["id"]
+    
+    order_id = f"ORD-{uuid.uuid4().hex[:8].upper()}"
+    
+    # 4. Find best truck
+    trucks = supabase.table("trucks").select("*").eq("status", "free").eq("truck_type", request.load_type).execute()
+    
+    best_truck = None
+    min_distance = float('inf')
+    
+    print(f"[MATCH] Searching {len(trucks.data)} trucks for '{request.load_type}'")
+    
+    for truck in trucks.data:
+        if truck.get("current_lat") and truck.get("current_lon"):
+            distance = haversine(pickup_lat, pickup_lon, truck["current_lat"], truck["current_lon"])
+            print(f"  {truck['truck_id']}: {distance:.1f}km")
+            if distance <= 5.0 and distance < min_distance:
+                min_distance = distance
+                best_truck = truck
+    
+    # 5. Create order
+    order_data = {
+        "order_id": order_id,
+        "user_id": user_id,  # ✅ Valid UUID from users table
+        "pickup_address": request.pickup_address,
+        "delivery_address": request.delivery_address,
+        "pickup_lat": pickup_lat, 
+        "pickup_lon": pickup_lon,
+        "delivery_lat": delivery_lat, 
+        "delivery_lon": delivery_lon,
+        "load_type": request.load_type,
+        "payload_weight": request.payload_weight,
+        "status": "assigned" if best_truck else "pending",
+        "assigned_truck_id": best_truck["id"] if best_truck else None,
+        "assigned_driver_name": best_truck["driver_name"] if best_truck else None,
+        "distance_km": round(min_distance, 1) if best_truck else None
+    }
+    
+    supabase.table("orders").insert(order_data).execute()
+    print(f"[SUCCESS] Created {order_id}")
+    
+    if best_truck:
+        supabase.table("trucks").update({"status": "busy"}).eq("id", best_truck["id"]).execute()
+        return {
+            "success": True,
+            "order_id": order_id,
+            "status": "assigned",
+            "truck_id": best_truck["truck_id"],
+            "driver": best_truck.get("driver_name", "N/A"),
+            "distance_km": round(min_distance, 1)
+        }
+    
+    return {
+        "success": True,
+        "order_id": order_id,
+        "status": "pending",
+        "message": "No truck within 5km"
+    }
+
+
+
+# 📊 DASHBOARD
+@app.get("/api/orders", tags=["Orders"])
+def get_orders(status: str = None, limit: int = 50):
+    # Specific fields including pickup/delivery locations
+    query = supabase.table("orders").select("""
+        order_id, status, pickup_address, delivery_address,
+        pickup_lat, pickup_lon, delivery_lat, delivery_lon,
+        load_type, payload_weight, assigned_truck_id,
+        assigned_driver_name, distance_km, created_at
+    """).order("created_at", desc=True).limit(limit)
+    
+    if status: 
+        query = query.eq("status", status)
+    
+    data = query.execute()
+    
+    return {
+        "success": True,  # ✅ Added
+        "orders": data.data,
+        "stats": {
+            "total": len(data.data),
+            "assigned": len([o for o in data.data if o["status"] == "assigned"]),
+            "pending": len([o for o in data.data if o["status"] == "pending"])
+        }
+    }
+
+
+# 🧪 SAMPLE TRUCKS
+@app.post("/api/trucks/sample", tags=["Test"])
+def add_sample_trucks():
+    trucks = [
+        {"truck_id": "TRUCK-001", "driver_name": "Ramesh", "status": "free", "truck_type": "dry", "current_lat": 18.520, "current_lon": 73.857},
+        {"truck_id": "TRUCK-002", "driver_name": "Suresh", "status": "free", "truck_type": "reefer", "current_lat": 18.518, "current_lon": 73.859},
+        {"truck_id": "TRUCK-003", "driver_name": "Mahesh", "status": "free", "truck_type": "dry", "current_lat": 18.522, "current_lon": 73.856},
+    ]
+    
+    for truck in trucks:
+        supabase.table("trucks").upsert(truck).execute()
+    
+    return {"added": len(trucks)}
 
 if __name__ == "__main__":
     import uvicorn
