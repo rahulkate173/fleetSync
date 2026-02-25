@@ -63,6 +63,79 @@ class SimulationCoordinate(BaseModel):
     longitude: float
     timestamp: str
 
+# === NOTIFICATION SYSTEM ===
+from fastapi import WebSocket, WebSocketDisconnect, Request
+from typing import Dict, List
+from pydantic import BaseModel
+import json
+from datetime import datetime, timezone
+from collections import defaultdict
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Float, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+
+# Notification Models
+class AlertRequest(BaseModel):
+    driver_id: str
+    message: str
+    type: str = "info"  # info, warning, critical
+    truck_id: Optional[str] = None
+
+class AlertResponse(BaseModel):
+    alert_id: str
+    driver_id: str
+    truck_id: Optional[str]
+    message: str
+    type: str
+    timestamp: str
+    read: bool = False
+
+# Global state for notifications
+alerts_db: Dict[str, AlertResponse] = {}
+driver_connections: Dict[str, WebSocket] = {}
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: Dict[str, WebSocket] = {}
+
+    async def connect(self, driver_id: str, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections[driver_id] = websocket
+        print(f"[NOTIFY] Driver {driver_id} connected ({len(self.active_connections)} total)")
+
+    def disconnect(self, driver_id: str):
+        if driver_id in self.active_connections:
+            del self.active_connections[driver_id]
+            print(f"[NOTIFY] Driver {driver_id} disconnected")
+
+    async def send_to_driver(self, driver_id: str, message: dict):
+        websocket = self.active_connections.get(driver_id)
+        if websocket:
+            try:
+                await websocket.send_json(message)
+                print(f"[NOTIFY] SENT to {driver_id}: {message.get('type', 'unknown')}")
+                return True
+            except Exception as e:
+                print(f"[NOTIFY] Failed to send to {driver_id}: {e}")
+                self.disconnect(driver_id)
+        else:
+            print(f"[NOTIFY] Driver {driver_id} OFFLINE - stored only")
+        return False
+
+    async def broadcast_all(self, message: dict):
+        """Send to all connected drivers"""
+        disconnected = []
+        for driver_id, websocket in list(self.active_connections.items()):
+            try:
+                await websocket.send_json(message)
+            except:
+                disconnected.append(driver_id)
+        
+        for driver_id in disconnected:
+            self.disconnect(driver_id)
+
+# Initialize globally
+notification_manager = ConnectionManager()
+
 # In-memory state
 fleet_state: Dict[str, dict] = {}
 ref_tracking: Dict[str, dict] = {}
@@ -920,6 +993,115 @@ async def driver_login(request: DriverLogin):
             "token": token
         }
     }, 200
+
+# === NOTIFICATION ROUTES ===
+
+@app.websocket("/ws/notifications/{driver_id}")
+async def driver_notifications(websocket: WebSocket, driver_id: str):
+    """Driver connects here for real-time alerts"""
+    await notification_manager.connect(driver_id, websocket)
+    
+    try:
+        # Send missed alerts on connect
+        missed_alerts = [a for a in alerts_db.values() if a.driver_id == driver_id and not a.read]
+        if missed_alerts:
+            await websocket.send_json({
+                "type": "missed_alerts", 
+                "count": len(missed_alerts),
+                "alerts": [alert.model_dump() for alert in missed_alerts]
+            })
+        
+        while True:
+            # Handle driver acknowledgments
+            data = await websocket.receive_text()
+            if data.startswith("ACK:"):
+                alert_id = data[4:]  # Remove "ACK:"
+                if alert_id in alerts_db:
+                    alerts_db[alert_id].read = True
+                    print(f"[NOTIFY] Alert {alert_id} marked read by {driver_id}")
+                    
+    except WebSocketDisconnect:
+        notification_manager.disconnect(driver_id)
+    except Exception as e:
+        print(f"[NOTIFY] WS Error {driver_id}: {e}")
+        notification_manager.disconnect(driver_id)
+
+@app.post("/alerts/send", tags=["Notifications"])
+async def send_driver_alert(alert: AlertRequest):
+    """Admin sends targeted alert to specific driver"""
+    alert_id = f"alert_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
+    
+    # Create and store alert
+    new_alert = AlertResponse(
+        alert_id=alert_id,
+        driver_id=alert.driver_id,
+        truck_id=alert.truck_id,
+        message=alert.message,
+        type=alert.type,
+        timestamp=datetime.now(timezone.utc).isoformat()
+    )
+    
+    alerts_db[alert_id] = new_alert
+    
+    # Send real-time if driver online
+    sent = await notification_manager.send_to_driver(alert.driver_id, {
+        "type": "new_alert",
+        "alert": new_alert.model_dump()
+    })
+    
+    return {
+        "status": "sent",
+        "alert_id": alert_id,
+        "driver_online": sent,
+        "total_stored": len(alerts_db)
+    }
+
+@app.get("/alerts/{driver_id}", tags=["Notifications"], response_model=List[AlertResponse])
+async def get_driver_alerts(driver_id: str):
+    """Driver fetches all their alerts (unread + read)"""
+    driver_alerts = [
+        alert for alert in alerts_db.values() 
+        if alert.driver_id == driver_id
+    ]
+    return sorted(driver_alerts, key=lambda x: x.timestamp, reverse=True)
+
+@app.put("/alerts/read/{alert_id}", tags=["Notifications"])
+async def mark_alert_read(alert_id: str):
+    """Driver marks specific alert as read"""
+    if alert_id in alerts_db:
+        alerts_db[alert_id].read = True
+        return {"status": "marked_read", "alert_id": alert_id}
+    return {"error": "Alert not found"}, 404
+
+@app.post("/alerts/broadcast", tags=["Notifications"])
+async def broadcast_fleet_alert(message: str, alert_type: str = "info"):
+    """Admin emergency broadcast to ALL drivers"""
+    broadcast_data = {
+        "type": "broadcast",
+        "message": message,
+        "alert_type": alert_type,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await notification_manager.broadcast_all(broadcast_data)
+    
+    return {
+        "status": "broadcast_sent",
+        "connected_drivers": len(notification_manager.active_connections)
+    }
+
+@app.get("/notifications/stats", tags=["Admin"])
+async def notification_stats():
+    """Admin dashboard stats"""
+    unread_count = sum(1 for alert in alerts_db.values() if not alert.read)
+    connected_drivers = len(notification_manager.active_connections)
+    
+    return {
+        "total_alerts": len(alerts_db),
+        "unread_alerts": unread_count,
+        "connected_drivers": connected_drivers,
+        "online_percentage": f"{(connected_drivers/len(alerts_db)*100):.1f}%" if alerts_db else "0%"
+    }
 
 
 if __name__ == "__main__":
