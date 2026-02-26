@@ -6,7 +6,7 @@ import Side from "../../components/Side";
 import Header from "../../components/Header";
 import Sidebar from "../../components/Sidebar";
 import Analysis from "../Analysis/Analysis";
-import Chart from "../../components/chart";
+import Chart from "../../components/Chart";
 import { useShipmentData } from "../../context/ShipmentDataContext";
 import Card from "../../components/Card";
 
