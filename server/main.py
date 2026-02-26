@@ -169,7 +169,8 @@ async def lifespan(app: FastAPI):
         import json
         producer = AIOKafkaProducer(
             bootstrap_servers="localhost:9092",
-            value_serializer=lambda v: json.dumps(v).encode("utf-8")
+            value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+            acks="all"
         )
         await producer.start()
         print("Kafka producer STARTED - fleetsync-gps-3")
@@ -212,6 +213,8 @@ async def _produce_to_kafka(vehicle_id: str, lat: float, lon: float, speed_kmh: 
     
     await producer.send_and_wait("fleetsync-gps-3", value=payload, key=vehicle_id.encode("utf-8"))
     print(f"[PRODUCER] Sent vehicle {vehicle_id}")
+
+
 
 @app.get("/dashboard/map/data",tags=["Admin"])
 async def get_map_data():

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Numeric, DateTime, Text, DECIMAL, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Numeric, DateTime, Text, DECIMAL, ForeignKey,Boolean
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from sqlalchemy.sql import func
@@ -88,7 +88,7 @@ class Order(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
-class Notification(models.Base):
+class Notification(Base):
     __tablename__ = "notifications"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
