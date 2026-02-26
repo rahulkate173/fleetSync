@@ -61,13 +61,7 @@ const Sidebar = () => {
         <button>Analysis</button>
       </div>
 
-      <div
-        className={`sidebar-item ${currentPath === "/notification" ? "active" : ""}`}
-        onClick={() => handleClick("notification")}
-      >
-        <button>Notification</button>
-      </div>
-
+   
       <div
         className={`sidebar-item ${currentPath === "/settings" ? "active" : ""}`}
         onClick={() => handleClick("settings")}

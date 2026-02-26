@@ -1,6 +1,6 @@
 .user-sidebar {
   width: 230px;
-  background-color: var(--bg-alt);
+  background-color:#0f172a;
   padding: 35px 20px;
   display: flex;
   flex-direction: column;
@@ -8,6 +8,7 @@
   min-height: 100vh;
   box-shadow: 4px 0 10px rgba(0, 0, 0, 0.05);
   color: var(--text-main);
+
 }
 
 .user-profile-circle {
@@ -33,6 +34,7 @@
   font-weight: 600;
   color: var(--text-main);
   transition: all 0.3s ease;
+  color: white;
 }
 
 .user-nav-item:hover {

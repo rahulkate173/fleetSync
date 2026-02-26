@@ -12,7 +12,27 @@ import AdminLogin from './pages/Login/AdminLogin'
 import OrderPage from './pages/User/OrderPage'
 import EtaPage from './pages/User/EtaPage'
 import UserLogin from './pages/user/UserLogin'
-
+import { ThemeProvider } from './context/ThemeContext'
+import DriverDashboard from './pages/Driver/DriverDashboard'
+import DriverLogin from './pages/Driver/DriverLogin'
+// import ThemeToggle from "./components/ThemeToggle"
+// import React from "react";
+// import Home from "./pages/Home/Home";
+// import { Route, Routes } from "react-router-dom";
+// import DriverDashboard from "./pages/Driver/DriverDashboard";
+// import Dashboard from "./pages/Dashboard/Dashboard";
+// import Shipment from "./pages/Shipment/Shipment";
+// import Analysis from "./pages/Analysis/Analysis";
+// import Notification from "./pages/Notification/Notification";
+// import Setting from "./pages/Settingspage/Settings";
+// import AdminLogin from "./pages/Login/AdminLogin";
+// import OrderPage from "./pages/User/OrderPage";
+// import EtaPage from "./pages/User/EtaPage";
+// import UserLogin from "./pages/user/UserLogin";
+// import DriverLogin from "./pages/Driver/DriverLogin";
+// import { ThemeProvider } from "./context/ThemeContext";
+// import ThemeToggle from "./components/ThemeToggle";
+// import "./theme.css";
 
 
 
@@ -20,7 +40,7 @@ const App = () => {
   return (
     <ThemeProvider>
       <div>
-        <ThemeToggle />
+        {/* <ThemeToggle /> */}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/driver" element={<DriverDashboard />} />

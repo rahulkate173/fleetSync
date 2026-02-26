@@ -4,6 +4,7 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  
 }
 
 body {
@@ -283,4 +284,15 @@ body {
   height: 50%;
  
 }
+.cd{
+.card{
+ background:rgb(238, 236, 236) !important;
+}
+}
 
+.card {
+  // color: black !important;
+  h4 ,p{
+    color: black !important;
+  }
+}
