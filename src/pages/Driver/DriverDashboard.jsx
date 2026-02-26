@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import DriverMap from "../../components/DriverMap";
+import axios from "axios";
 import "./DriverDashboard.scss";
 
 const DRIVER_ID = "40"; // Replace with logged-in driver ID
@@ -69,26 +70,50 @@ const DriverDashboard = () => {
   // 📍 GPS TRACKING
   // ==============================
 
+  // const sendLocationToBackend = async (coords) => {
+  //   try {
+  //     await fetch("http://localhost:8000/truck/gps", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({
+  //         vehicle_id: DRIVER_ID,
+  //         lat: coords.latitude,
+  //         lon: coords.longitude,
+  //         speed_kmh: 50,
+  //         temperature: 0,
+  //         reference_id: "45",
+  //       }),
+  //     });
+  //   } catch (err) {
+  //     console.error("Error sending location:", err);
+  //   }
+  // };
   const sendLocationToBackend = async (coords) => {
-    try {
-      await fetch("http://localhost:8000/truck/gps", {
-        method: "POST",
+  try {
+    const response = await axios.post(
+      "http://localhost:8000/truck/gps",
+      {
+        vehicle_id: DRIVER_ID,
+        lat: coords.latitude,
+        lon: coords.longitude,
+        speed_kmh: 50,
+        temperature: 0,
+        reference_id: "45",
+      },
+      {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          vehicle_id: DRIVER_ID,
-          lat: coords.latitude,
-          lon: coords.longitude,
-          speed_kmh: 50,
-          temperature: 0,
-          reference_id: "45",
-        }),
-      });
-    } catch (err) {
-      console.error("Error sending location:", err);
-    }
-  };
+      }
+    );
+
+    console.log("Location sent successfully:", response.data);
+  } catch (err) {
+    console.error("Error sending location:", err.response?.data || err.message);
+  }
+};
 
   const startTracking = () => {
     if (!navigator.geolocation) {
