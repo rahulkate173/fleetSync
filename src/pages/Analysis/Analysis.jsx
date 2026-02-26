@@ -13,7 +13,7 @@ import {
 import jsPDF from "jspdf";
 
 import Sidebar from "../../components/Sidebar";
-import Chart from "../../components/chart";
+import Chart from "../../components/Chart";
 import { useShipmentData } from "../../context/ShipmentDataContext";
 import ReportPDF from "../../components/ReportPDF";
 
