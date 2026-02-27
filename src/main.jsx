@@ -8,7 +8,11 @@ import { FleetStatsProvider } from './context/FleetStatsContext';
 import { ShipmentDataProvider } from "./context/ShipmentDataContext";
 import App from './App.jsx';
 
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "pk_test_placeholder";
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+if (!PUBLISHABLE_KEY) {
+  throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY");
+}
 
 createRoot(document.getElementById('root')).render(
   <BrowserRouter>
