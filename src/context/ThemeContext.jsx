@@ -16,7 +16,7 @@ export const ThemeProvider = ({ children }) => {
     }
   }, []);
 
-  // Apply to document and persist
+
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     window.localStorage.setItem("fleet_theme", theme);

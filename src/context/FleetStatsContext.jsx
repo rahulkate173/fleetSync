@@ -13,7 +13,7 @@ export const FleetStatsProvider = ({ children }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await axios.get("http://localhost:8000/dashboard/summary");
+        const res = await axios.get("https://server-production-cd13.up.railway.app/dashboard/summary");
         const data = res.data;
 
         console.log("Backend Response:", data);

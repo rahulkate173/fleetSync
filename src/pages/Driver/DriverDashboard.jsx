@@ -26,7 +26,7 @@ const DriverDashboard = () => {
 
   const connectWebSocket = () => {
     const ws = new WebSocket(
-      `ws://localhost:8000/ws/notifications/${DRIVER_ID}`
+      `ws://https://server-production-cd13.up.railway.app/ws/notifications/${DRIVER_ID}`
     );
 
     ws.onopen = () => {
@@ -70,30 +70,10 @@ const DriverDashboard = () => {
   // 📍 GPS TRACKING
   // ==============================
 
-  // const sendLocationToBackend = async (coords) => {
-  //   try {
-  //     await fetch("http://localhost:8000/truck/gps", {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify({
-  //         vehicle_id: DRIVER_ID,
-  //         lat: coords.latitude,
-  //         lon: coords.longitude,
-  //         speed_kmh: 50,
-  //         temperature: 0,
-  //         reference_id: "45",
-  //       }),
-  //     });
-  //   } catch (err) {
-  //     console.error("Error sending location:", err);
-  //   }
-  // };
   const sendLocationToBackend = async (coords) => {
   try {
     const response = await axios.post(
-      "http://localhost:8000/truck/gps",
+      "https://server-production-cd13.up.railway.app/truck/gps",
       {
         vehicle_id: DRIVER_ID,
         lat: coords.latitude,
@@ -161,7 +141,7 @@ const DriverDashboard = () => {
 
     const fetchStats = async () => {
       try {
-        const res = await fetch("http://localhost:8000/analysis/fleet-stats");
+        const res = await fetch("https://server-production-cd13.up.railway.app/analysis/fleet-stats");
         if (!res.ok) return;
         const data = await res.json();
         if (cancelled) return;

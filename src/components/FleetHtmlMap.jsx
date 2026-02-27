@@ -11,7 +11,7 @@ const FleetHtmlMap = () => {
   const markersRef = useRef({});
   const [liveVehicles, setLiveVehicles] = useState([]);
 
-  const API_URL = "http://localhost:8000";
+  const API_URL = "https://server-production-cd13.up.railway.app/";
 
   // ================================
   // FETCH DRIVER DATA

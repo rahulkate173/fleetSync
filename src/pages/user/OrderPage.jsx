@@ -13,7 +13,7 @@ const OrderPage = () => {
     e.preventDefault();
 
     try {
-      await axios.post("/api/orders", {
+      await axios.post("https://server-production-cd13.up.railway.app/api/orders", {
         payloadType,
         weight,
         destination,

@@ -12,7 +12,7 @@ const DriverLogin = () => {
     setLoading(true);
 
     try {
-      await axios.post("http://localhost:8000/api/drivers/login", {
+      await axios.post("https://server-production-cd13.up.railway.app/api/drivers/login", {
         email,
         password,
       });

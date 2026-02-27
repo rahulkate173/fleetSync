@@ -25,7 +25,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await axios.get("http://localhost:8000/dashboard/summary");
+        const res = await axios.get("https://server-production-cd13.up.railway.app/dashboard/summary");
         const data = res.data;
         setActive(data.fleet_status.delayed || 0);
         setTotal(data.fleet_status.total || 0);
@@ -47,7 +47,7 @@ const Dashboard = () => {
     setChatInput('');
 
     try {
-      const response = await axios.post("http://localhost:8000/chat/admin", chatInput, {
+      const response = await axios.post("https://server-production-cd13.up.railway.app/chat/admin", chatInput, {
         headers: { 'Content-Type': 'application/json' }
       });
       

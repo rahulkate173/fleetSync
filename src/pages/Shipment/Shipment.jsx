@@ -16,7 +16,7 @@ const Shipment = () => {
 
     try {
       const response = await axios.get(
-        `http://localhost:8000/shipment/search/${searchId}`
+        `https://server-production-cd13.up.railway.app/shipment/search/${searchId}`
       );
 
       if (response.data) {
@@ -35,7 +35,7 @@ const Shipment = () => {
     if (!message.trim()) return alert("Message cannot be empty");
 
     try {
-      await axios.post("http://localhost:8000/alerts/send", {
+      await axios.post("https://server-production-cd13.up.railway.app/alerts/send", {
         driver_id: shipment.driver_id,   // IMPORTANT
         shipmentId: shipment._id,
         message: message,
