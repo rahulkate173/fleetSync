@@ -805,7 +805,7 @@ import httpx
 import uuid
 import os
 
-supabase = create_client(os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_KEY"))
+supabase = create_client(os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_ANON_KEY"))
 
 class OrderRequest(BaseModel):
     pickup_address: str
