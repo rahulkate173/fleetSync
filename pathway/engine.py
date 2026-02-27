@@ -12,10 +12,9 @@ load_dotenv()
 import sys
 sys.stdout.reconfigure(line_buffering=True)
 
-KAFKA_BOOTSTRAP = "localhost:9092"        
-SERVER_URL = "http://localhost:8000"      
-TOPIC = "fleetsync-gps-3"  
-
+KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+SERVER_URL = os.getenv("FLEETSYNC_SERVER_URL", "http://fleetSync:8000")
+TOPIC = os.getenv("KAFKA_TOPIC", "fleetsync-gps-3")
 
 def is_valid_gps(lat: float, lon: float, temp: float | None = None) -> bool:
     """Filter invalid: (0,0), out-of-range coords. Optional temp excursion check."""
