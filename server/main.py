@@ -866,11 +866,20 @@ async def driver_login(request: DriverLogin):
 from fastapi.responses import JSONResponse
 from typing import Optional
 from starlette.requests import Request
+from fastapi import Depends, Request
+
+async def get_request(request: Request):
+    return request
+
 @app.post("/ingest/pathway", response_model=None, tags=["System"])
-async def ingest_pathway_endpoint(data: PathwayUpdate, db: Session = Depends(get_db),request: Optional[Request] = None) -> JSONResponse | dict | None:
+async def ingest_pathway_endpoint(
+    data: PathwayUpdate, 
+    db: Session = Depends(get_db),
+    request: Optional[Request] = Depends(get_request, use_cache=False)
+) -> dict:
     """Pathway posts processed data here after Kafka consumption"""
     client_ip = request.client.host if request else "unknown"
-    print(f"[INGEST] From: {client_ip} | Vehicle: {data.vehicle_id} | GPS: {data.gps.lat}, {data.gps.lon}")
+    print(f"[INGEST] From: {client_ip} | Vehicle: {data.vehicle_id}")
     
     fleet_state[data.vehicle_id] = data.model_dump()
     
@@ -882,6 +891,7 @@ async def ingest_pathway_endpoint(data: PathwayUpdate, db: Session = Depends(get
         }
     
     return {"status": "Live & DB Updated"}
+
 
 @app.get("/track/{reference_id}", tags=["User"])
 def track_by_reference(reference_id: str, db: Session = Depends(get_db)):
