@@ -1,6 +1,11 @@
 # Core Pathway Framework (Latest stable)
 pathway
-
+kafka-python==2.0.2
+pathway==6.0.0
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+sqlalchemy==2.0.35
+pydantic==2.9.2
 # Kafka Integration
 aiokafka>=0.10.0
 confluent-kafka>=2.3.0
