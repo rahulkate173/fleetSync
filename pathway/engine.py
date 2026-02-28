@@ -298,7 +298,7 @@ def build_processing_pipeline():
             },
             topic=KAFKA_TOPIC,
             format="raw",
-            mode="append",
+            mode="streaming",
         )
         
         print("[KAFKA] Connected successfully")
