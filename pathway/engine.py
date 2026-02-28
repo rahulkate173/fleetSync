@@ -21,7 +21,6 @@ load_dotenv()
 
 # Pathway imports
 import pathway as pw
-from pathway.io.kafka import read as kafka_read
 
 # HTTP client
 import httpx
@@ -31,8 +30,8 @@ import asyncio
 # CONFIGURATION
 # ============================================================================
 
-KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
-SERVER_URL = os.getenv("FLEETSYNC_SERVER_URL", "http://server:8000")
+KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+SERVER_URL = os.getenv("FLEETSYNC_SERVER_URL", "http://localhost:8000")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "fleetsync-gps-3")
 KAFKA_GROUP_ID = os.getenv("KAFKA_GROUP_ID", "pathway-fleetsync-gps")
 
@@ -44,10 +43,16 @@ SPEED_MAX_KMH = float(os.getenv("SPEED_MAX_KMH", "150"))
 POST_TIMEOUT = float(os.getenv("POST_TIMEOUT", "5.0"))
 RETRY_ATTEMPTS = int(os.getenv("RETRY_ATTEMPTS", "3"))
 
-print(f"[CONFIG] Kafka: {KAFKA_BOOTSTRAP}")
-print(f"[CONFIG] Topic: {KAFKA_TOPIC}")
-print(f"[CONFIG] Server: {SERVER_URL}")
-print(f"[CONFIG] Group: {KAFKA_GROUP_ID}")
+# Validate configuration
+if not SERVER_URL or SERVER_URL == "":
+    print("[ERROR] FLEETSYNC_SERVER_URL is not set!")
+    SERVER_URL = "http://server:8000"
+    print(f"[WARNING] Using default: {SERVER_URL}")
+
+print(f"[CONFIG] Kafka Bootstrap: {KAFKA_BOOTSTRAP}")
+print(f"[CONFIG] Kafka Topic: {KAFKA_TOPIC}")
+print(f"[CONFIG] Kafka Group: {KAFKA_GROUP_ID}")
+print(f"[CONFIG] Server URL: {SERVER_URL}")
 print(f"[CONFIG] GPS Validation: {GPS_VALIDATION_ENABLED}")
 
 # ============================================================================
@@ -87,36 +92,23 @@ class ProcessedGPSData(pw.Schema):
 # ============================================================================
 
 def is_valid_gps_coordinates(lat: float, lon: float) -> bool:
-    """
-    Validate GPS coordinates
-    - Not (0, 0)
-    - Within valid ranges: lat [-90, 90], lon [-180, 180]
-    """
+    """Validate GPS coordinates"""
     try:
-        # Reject (0, 0)
         if lat == 0.0 and lon == 0.0:
             return False
-        
-        # Validate ranges
         if lat < -90 or lat > 90:
             return False
         if lon < -180 or lon > 180:
             return False
-        
         return True
     except (TypeError, ValueError):
         return False
 
 
 def is_valid_temperature(temp: Optional[float]) -> bool:
-    """
-    Validate temperature reading
-    - Optional (can be None)
-    - If present: within reasonable range
-    """
+    """Validate temperature reading"""
     if temp is None:
-        return True  # Temperature is optional
-    
+        return True
     try:
         if temp > TEMPERATURE_EXCURSION_MAX or temp < TEMPERATURE_EXCURSION_MIN:
             return False
@@ -126,11 +118,7 @@ def is_valid_temperature(temp: Optional[float]) -> bool:
 
 
 def is_valid_speed(speed: float) -> bool:
-    """
-    Validate speed reading
-    - Non-negative
-    - Below maximum
-    """
+    """Validate speed reading"""
     try:
         if speed < 0 or speed > SPEED_MAX_KMH:
             return False
@@ -156,78 +144,29 @@ def validate_gps_record(
     )
 
 
-def deserialize_kafka_value(data: bytes) -> Optional[Dict[str, Any]]:
+def parse_kafka_json(data: bytes) -> Optional[Dict[str, Any]]:
     """
-    Safely deserialize Kafka message
-    Handles JSON errors gracefully
+    Parse Kafka message (bytes) to JSON
+    Pathway will pass the raw byte message
     """
     try:
-        return json.loads(data.decode("utf-8"))
+        if isinstance(data, bytes):
+            return json.loads(data.decode("utf-8"))
+        elif isinstance(data, str):
+            return json.loads(data)
+        else:
+            return data
     except json.JSONDecodeError as e:
-        print(f"[DESERIALIZE] JSON error: {e}")
-        return None
-    except UnicodeDecodeError as e:
-        print(f"[DESERIALIZE] Encoding error: {e}")
+        print(f"[PARSE] JSON error: {e}")
         return None
     except Exception as e:
-        print(f"[DESERIALIZE] Unexpected error: {e}")
+        print(f"[PARSE] Error: {e}")
         return None
-
-
-# ============================================================================
-# KAFKA CONNECTOR
-# ============================================================================
-
-def create_kafka_connector():
-    """
-    Create Kafka connector with Pathway
-    Returns stream of raw GPS data
-    """
-    print("[KAFKA] Connecting to Kafka...")
-    
-    try:
-        # Read from Kafka
-        kafka_stream = kafka_read(
-            rdkafka_settings={
-                "bootstrap.servers": KAFKA_BOOTSTRAP,
-                "group.id": KAFKA_GROUP_ID,
-                "auto.offset.reset": "earliest",
-                "session.timeout.ms": "30000",
-                "api.version.request.timeout.ms": "10000",
-                "socket.keepalive.enable": "true",
-            },
-            topic=KAFKA_TOPIC,
-            value_deserializer=deserialize_kafka_value,
-            format="raw",
-            mode="streaming",
-        )
-        
-        print("[KAFKA] Connected successfully")
-        return kafka_stream
-    except Exception as e:
-        print(f"[KAFKA] Connection error: {e}")
-        raise
 
 
 def flatten_gps_data(data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
     Flatten nested Kafka JSON to Pathway schema
-    
-    Input:
-    {
-        "vehicle_id": "TRUCK-001",
-        "update_timestamp": "2026-02-28T10:30:00Z",
-        "gps": {
-            "lat": 18.5204,
-            "lon": 73.8567,
-            "speed_kmh": 45.5,
-            "temperature": 28.5,
-            "is_valid": true
-        },
-        "reference_id": "REF-123"
-    }
-    
-    Output: Flattened dict matching RawGPSData schema
     """
     try:
         if not isinstance(data, dict):
@@ -263,22 +202,22 @@ def flatten_gps_data(data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 # HTTP POST WITH RETRY
 # ============================================================================
 
-async def post_to_fastapi_with_retry(row: Dict[str, Any], attempt: int = 0) -> bool:
+async def post_to_fastapi_with_retry(row_dict: Dict[str, Any], attempt: int = 0) -> bool:
     """
     POST processed GPS to FastAPI /ingest/pathway with retry logic
     """
     try:
         payload = {
-            "update_timestamp": row["update_timestamp"],
-            "vehicle_id": row["vehicle_id"],
-            "reference_id": row["reference_id"],
-            "shipment_id": row["shipment_id"],
+            "update_timestamp": row_dict["update_timestamp"],
+            "vehicle_id": row_dict["vehicle_id"],
+            "reference_id": row_dict["reference_id"],
+            "shipment_id": row_dict["shipment_id"],
             "gps": {
-                "lat": row["gps_lat"],
-                "lon": row["gps_lon"],
-                "speed_kmh": row["gps_speed_kmh"],
-                "temperature": row["gps_temperature"],
-                "is_valid": row["gps_is_valid"],
+                "lat": row_dict["gps_lat"],
+                "lon": row_dict["gps_lon"],
+                "speed_kmh": row_dict["gps_speed_kmh"],
+                "temperature": row_dict["gps_temperature"],
+                "is_valid": row_dict["gps_is_valid"],
             },
         }
         
@@ -290,41 +229,39 @@ async def post_to_fastapi_with_retry(row: Dict[str, Any], attempt: int = 0) -> b
             
             if response.status_code == 200:
                 print(
-                    f"[POST] ✓ 200 - {row['vehicle_id']} "
-                    f"({row['gps_lat']:.4f}, {row['gps_lon']:.4f})"
+                    f"[POST] ✓ 200 - {row_dict['vehicle_id']} "
+                    f"({row_dict['gps_lat']:.4f}, {row_dict['gps_lon']:.4f})"
                 )
                 return True
             else:
                 print(
-                    f"[POST] ✗ {response.status_code} - {row['vehicle_id']} "
+                    f"[POST] ✗ {response.status_code} - {row_dict['vehicle_id']} "
                     f"(attempt {attempt + 1}/{RETRY_ATTEMPTS})"
                 )
                 
                 # Retry on server errors
                 if response.status_code >= 500 and attempt < RETRY_ATTEMPTS - 1:
-                    await asyncio.sleep(2 ** attempt)  # Exponential backoff
-                    return await post_to_fastapi_with_retry(row, attempt + 1)
+                    await asyncio.sleep(2 ** attempt)
+                    return await post_to_fastapi_with_retry(row_dict, attempt + 1)
                 
                 return False
     
     except httpx.TimeoutException:
-        print(f"[POST] ⏱ TIMEOUT - {row['vehicle_id']} (attempt {attempt + 1}/{RETRY_ATTEMPTS})")
-        
+        print(f"[POST] ⏱ TIMEOUT - {row_dict['vehicle_id']} (attempt {attempt + 1}/{RETRY_ATTEMPTS})")
         if attempt < RETRY_ATTEMPTS - 1:
             await asyncio.sleep(2 ** attempt)
-            return await post_to_fastapi_with_retry(row, attempt + 1)
+            return await post_to_fastapi_with_retry(row_dict, attempt + 1)
         return False
     
-    except httpx.ConnectError:
-        print(f"[POST] 🔌 CONNECTION ERROR - {row['vehicle_id']} (attempt {attempt + 1}/{RETRY_ATTEMPTS})")
-        
+    except httpx.ConnectError as e:
+        print(f"[POST] 🔌 CONNECTION ERROR - {row_dict['vehicle_id']}: {e} (attempt {attempt + 1}/{RETRY_ATTEMPTS})")
         if attempt < RETRY_ATTEMPTS - 1:
             await asyncio.sleep(2 ** attempt)
-            return await post_to_fastapi_with_retry(row, attempt + 1)
+            return await post_to_fastapi_with_retry(row_dict, attempt + 1)
         return False
     
     except Exception as e:
-        print(f"[POST] ❌ ERROR - {row['vehicle_id']}: {e}")
+        print(f"[POST] ❌ ERROR - {row_dict['vehicle_id']}: {e}")
         return False
 
 
@@ -337,7 +274,7 @@ def build_processing_pipeline():
     Build Pathway streaming pipeline
     
     Flow:
-    1. Read from Kafka
+    1. Read from Kafka (native Pathway format)
     2. Parse JSON
     3. Flatten schema
     4. Validate GPS
@@ -347,26 +284,45 @@ def build_processing_pipeline():
     
     print("[PIPELINE] Building processing pipeline...")
     
-    # Step 1: Create Kafka connector
-    raw_stream = create_kafka_connector()
+    # Step 1: Create Kafka connector (WITHOUT value_deserializer)
+    try:
+        print("[KAFKA] Connecting to Kafka...")
+        
+        kafka_stream = pw.io.kafka.read(
+            rdkafka_settings={
+                "bootstrap.servers": KAFKA_BOOTSTRAP,
+                "group.id": KAFKA_GROUP_ID,
+                "auto.offset.reset": "earliest",
+                "session.timeout.ms": "30000",
+                "api.version.request.timeout.ms": "10000",
+            },
+            topic=KAFKA_TOPIC,
+            format="raw",
+            mode="append",
+        )
+        
+        print("[KAFKA] Connected successfully")
+    except Exception as e:
+        print(f"[KAFKA] Connection error: {e}")
+        raise
     
     # Step 2: Parse JSON from Kafka messages
-    def parse_kafka_message(msg):
-        """Extract value from Kafka message"""
+    def parse_message(row):
+        """Parse Kafka message"""
         try:
-            if isinstance(msg, dict):
-                return msg
-            return None
+            data = parse_kafka_json(row.data)
+            return data
         except Exception as e:
             print(f"[PARSE] Error: {e}")
             return None
     
-    parsed_stream = raw_stream.map(parse_kafka_message).filter(lambda x: x is not None)
+    parsed_stream = kafka_stream.map(parse_message).filter(lambda x: x is not None)
     
     # Step 3: Flatten to schema
     def apply_flatten(row):
         """Apply flattening transformation"""
-        return flatten_gps_data(row)
+        flattened = flatten_gps_data(row)
+        return flattened
     
     flattened_stream = parsed_stream.map(apply_flatten).filter(lambda x: x is not None)
     
@@ -490,6 +446,7 @@ def main():
         
     except KeyboardInterrupt:
         print("\n\n[SHUTDOWN] Received interrupt signal")
+        sys.exit(0)
     except Exception as e:
         print(f"\n[ERROR] Fatal error: {e}")
         import traceback
