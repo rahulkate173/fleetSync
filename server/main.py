@@ -863,9 +863,11 @@ async def driver_login(request: DriverLogin):
 # ============================================================================
 # SYSTEM & TRACKING ROUTES
 # ============================================================================
-
-@app.post("/ingest/pathway", response_model=None,tags=["System"])
-async def ingest_pathway(data: PathwayUpdate, db: Session = Depends(get_db), request: Optional[Request] = None):
+from fastapi.responses import JSONResponse
+from typing import Optional
+from starlette.requests import Request
+@app.post("/ingest/pathway", response_model=None, tags=["System"])
+async def ingest_pathway_endpoint(data: PathwayUpdate, db: Session = Depends(get_db),request: Optional[Request] = None) -> JSONResponse | dict | None:
     """Pathway posts processed data here after Kafka consumption"""
     client_ip = request.client.host if request else "unknown"
     print(f"[INGEST] From: {client_ip} | Vehicle: {data.vehicle_id} | GPS: {data.gps.lat}, {data.gps.lon}")
