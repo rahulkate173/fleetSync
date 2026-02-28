@@ -199,7 +199,7 @@ def create_kafka_connector():
             topic=KAFKA_TOPIC,
             value_deserializer=deserialize_kafka_value,
             format="raw",
-            mode="append",
+            mode="streaming",
         )
         
         print("[KAFKA] Connected successfully")
