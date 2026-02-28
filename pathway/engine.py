@@ -132,15 +132,27 @@ def main():
         print("=" * 80)
         print(f"Start time: {datetime.now().isoformat()}")
         
-        # Build pipeline
+        # Build pipeline (returns None if no Kafka)
         result_stream = build_processing_pipeline()
         
-        # Run the Pathway computation
-        pw.run(result_stream)
-        
+        # FIXED: pw.run() takes NO arguments
+        if result_stream is not None:
+            print("[INFO] Starting Pathway computation...")
+            pw.run()  # ✅ Correct syntax
+        else:
+            print("[INFO] No Kafka - running in standalone mode (FastAPI only)")
+            # Keep app alive for Railway
+            import time
+            while True:
+                time.sleep(60)
+                print("[INFO] FleetSync ready - waiting for API traffic...")
+                
+    except KeyboardInterrupt:
+        print("\n[INFO] Shutdown requested")
     except Exception as e:
         logger.error(f"[ERROR] Fatal error in main: {e}", exc_info=True)
-        raise
+        print("[INFO] Engine stopped - FastAPI endpoints still work")
+
 
 if __name__ == "__main__":
     main()
