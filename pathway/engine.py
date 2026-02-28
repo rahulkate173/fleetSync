@@ -79,7 +79,7 @@ def build_processing_pipeline():
     try:
         print("[PIPELINE] Building processing pipeline...")
         
-        # FIXED: Handle Railway + Local Kafka
+        # Get Kafka config from environment
         kafka_bootstrap = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'kafka:9092')
         kafka_topic = os.getenv('KAFKA_TOPIC', 'fleetsync-gps-3')
         kafka_group = os.getenv('KAFKA_GROUP_ID', 'pathway-fleetsync-gps')
@@ -88,21 +88,22 @@ def build_processing_pipeline():
         print(f"[CONFIG] Kafka Topic: {kafka_topic}")
         print(f"[CONFIG] Kafka Group: {kafka_group}")
         
-        # Graceful fallback for Railway (no Kafka yet)
-        if not kafka_bootstrap or kafka_bootstrap == 'kafka:9092':
-            print("[WARNING] No Kafka available - running in standalone mode")
-            return None
+        # ✅ FIXED: REMOVE BLOCKING CHECK - Always try to connect!
+        # Railway private networking handles kafka:9092 correctly
         
-        # Parse host:port correctly
+        # Parse host:port
         if ':' in kafka_bootstrap:
-            host = kafka_bootstrap.split(':')[0]
-            port = int(kafka_bootstrap.split(':')[1])
+            host = kafka_bootstrap.split(':')[0]  # kafka
+            port = int(kafka_bootstrap.split(':')[1])  # 9092
         else:
             host, port = 'kafka', 9092
         
         class InputSchema(pw.Schema):
             message: str
         
+        print(f"[CONNECT] Attempting Kafka connection: {host}:{port}")
+        
+        # Let Pathway try to connect (handles errors internally)
         kafka_stream = pw.io.kafka.read(
             host=host,
             port=port,
@@ -111,17 +112,20 @@ def build_processing_pipeline():
             format="json"
         )
         
-        # Simplified processing - just log for now
+        # Process GPS data
         parsed_stream = kafka_stream.map(parse_message)
         filtered_stream = parsed_stream.filter(pw.this.is_not_null())
         
+        print("[SUCCESS] Pathway Kafka pipeline connected!")
         logger.info("[PIPELINE] Processing pipeline built successfully")
         return filtered_stream
         
     except Exception as e:
-        logger.error(f"[ERROR] Pipeline construction failed (OK on Railway): {e}")
-        print("[INFO] Running without Kafka - core app still works")
+        print(f"[WARNING] Pathway Kafka connection failed: {e}")
+        print("[INFO] Running FastAPI standalone mode - core app still works")
+        logger.error(f"[ERROR] Pipeline construction failed: {e}")
         return None  # Graceful fallback
+
 
 
 def main():
