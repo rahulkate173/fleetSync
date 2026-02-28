@@ -864,7 +864,7 @@ async def driver_login(request: DriverLogin):
 # SYSTEM & TRACKING ROUTES
 # ============================================================================
 
-@app.post("/ingest/pathway", tags=["System"])
+@app.post("/ingest/pathway", response_model=None,tags=["System"])
 async def ingest_pathway(data: PathwayUpdate, db: Session = Depends(get_db), request: Optional[Request] = None):
     """Pathway posts processed data here after Kafka consumption"""
     client_ip = request.client.host if request else "unknown"
