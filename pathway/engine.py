@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class GPSMessage:
     def __init__(self, vehicle_id: str, latitude: float, longitude: float, 
-                 speed: float, timestamp: str, accuracy: float = None):
+        speed: float, timestamp: str, accuracy: float = None):
         self.vehicle_id = vehicle_id
         self.latitude = latitude
         self.longitude = longitude
@@ -109,7 +109,13 @@ def build_processing_pipeline():
             port=port,
             topic=kafka_topic,
             group_id=kafka_group,
-            format="json"
+            format="json",
+            rdkafka_settings={
+                "group.id": kafka_group,
+                "enable.auto.commit": "true",
+                "auto.offset.reset": "earliest",
+                "bootstrap.servers": f"{host}:{port}"
+            }
         )
         
         # Process GPS data
