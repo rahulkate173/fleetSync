@@ -20,20 +20,20 @@ const DriverLogin = () => {
     );
     
     if (response.data.success) {
-      // Store driver ID and token
-      localStorage.setItem('driverId', response.data.driver.id);
-      localStorage.setItem('driverToken', response.data.driver.token);
-      localStorage.setItem('driverName', response.data.driver.driver_name);
       
-      // Navigate to dashboard
-      navigate('/driver/dashboard');
+      localStorage.setItem("driverId", response.data.driver.driver_id);
+      localStorage.setItem("driverToken", response.data.driver.token);
+      localStorage.setItem("driverName", response.data.driver.driver_name);
+      
+      navigate("/driver/dashboard");
     }
   } catch (error) {
+    console.error("Login failed:", error);
     alert("Login failed. Please check your credentials.");
   } finally {
     setLoading(false);
   }
-};
+};;
 
   return (
     <div className="driver-login-page">

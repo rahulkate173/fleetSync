@@ -2098,10 +2098,13 @@ class DriverSignupRequest(BaseModel):
 
 @app.post("/api/drivers/signup", tags=["Truck Driver"])
 async def driver_signup(request: DriverSignupRequest):
-    """Driver registration endpoint"""
+    """Driver registration with Supabase"""
     try:
         from supabase import create_client
-        supabase = create_client(os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_ANON_KEY"))
+        supabase = create_client(
+            os.environ.get("SUPABASE_URL"), 
+            os.environ.get("SUPABASE_ANON_KEY")
+        )
         
         # Check if driver already exists
         existing = supabase.table("drivers").select("*").eq("username", request.username).execute()
@@ -2111,7 +2114,7 @@ async def driver_signup(request: DriverSignupRequest):
         # Hash password
         password_hash = hash_password(request.password)
         
-        # Create driver record
+        # Create driver record - DO NOT INCLUDE driver_id, let it auto-increment
         driver_data = {
             "username": request.username,
             "email": request.email,
@@ -2120,23 +2123,35 @@ async def driver_signup(request: DriverSignupRequest):
             "phone": request.phone,
             "truck_id": request.truck_id,
             "is_active": True,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
+            # ❌ DO NOT include driver_id - it will auto-generate
         }
+        
+        print(f"[SIGNUP] Inserting driver: {request.username}")
         
         result = supabase.table("drivers").insert(driver_data).execute()
         
         if result.data:
+            created_driver = result.data[0]
             return {
                 "success": True,
                 "message": "Driver registered successfully",
-                "driver_id": result.data[0].get("id")
+                "driver": {
+                    "id": created_driver.get("id"),
+                    "driver_id": created_driver.get("driver_id"),  
+                    "username": created_driver.get("username"),
+                    "driver_name": created_driver.get("driver_name"),
+                    "truck_id": created_driver.get("truck_id")
+                }
             }
         else:
-            return {"error": "Registration failed"}, 500
-            
+            return {"error": "Failed to create driver"}, 500
+        
     except Exception as e:
         print(f"[SIGNUP ERROR] {str(e)}")
-        return {"error": "Registration error"}, 500
+        import traceback
+        traceback.print_exc()
+        return {"error": f"Registration failed: {str(e)}"}, 500
 
 
 
