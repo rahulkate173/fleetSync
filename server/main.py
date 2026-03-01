@@ -856,28 +856,123 @@ class DriverLoginRequest(BaseModel):
     email: str
     password: str
 
-@app.post("/api/drivers/login", tags=["Truck Driver"])
-async def driver_login(request: DriverLoginRequest):
-    """Driver login - using EMAIL not username"""
+from pydantic import BaseModel, EmailStr
+from datetime import datetime, timezone
+import secrets
+
+# ✅ CORRECT REQUEST MODEL
+class DriverSignupRequest(BaseModel):
+    username: str
+    email: str
+    password: str
+    full_name: str  # ✅ Use full_name, not driver_name
+    phone: str
+    truck_id: str
+
+class DriverLoginRequest(BaseModel):
+    email: str
+    password: str
+
+# ✅ SIGNUP ENDPOINT
+@app.post("/api/drivers/signup", tags=["Truck Driver"])
+async def driver_signup(request: DriverSignupRequest):
+    """Driver registration with Supabase"""
     try:
         from supabase import create_client
-        supabase = create_client(os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_ANON_KEY"))
+        supabase = create_client(
+            os.environ.get("SUPABASE_URL"), 
+            os.environ.get("SUPABASE_ANON_KEY")
+        )
         
-        # Query by email instead of username
+        # Check if email already exists
+        existing = supabase.table("drivers").select("*").eq("email", request.email).execute()
+        if existing.data:
+            return {"error": "Email already registered"}, 400
+        
+        # Check if username already exists
+        existing_user = supabase.table("drivers").select("*").eq("username", request.username).execute()
+        if existing_user.data:
+            return {"error": "Username already exists"}, 400
+        
+        # Hash password
+        password_hash = hash_password(request.password)
+        
+        # Create driver record - DO NOT include driver_id, let it auto-increment
+        driver_data = {
+            "username": request.username,
+            "email": request.email,
+            "password_hash": password_hash,
+            "driver_name": request.full_name,  # ✅ Map full_name to driver_name
+            "phone": request.phone,
+            "truck_id": request.truck_id,
+            "is_active": True,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        
+        print(f"[SIGNUP] Inserting driver: {request.username} ({request.email})")
+        
+        result = supabase.table("drivers").insert(driver_data).execute()
+        
+        if result.data:
+            created_driver = result.data[0]
+            return {
+                "success": True,
+                "message": "Driver registered successfully",
+                "driver": {
+                    "id": created_driver.get("id"),
+                    "driver_id": created_driver.get("driver_id"),
+                    "username": created_driver.get("username"),
+                    "driver_name": created_driver.get("driver_name"),
+                    "email": created_driver.get("email"),
+                    "phone": created_driver.get("phone"),
+                    "truck_id": created_driver.get("truck_id")
+                }
+            }
+        else:
+            return {"error": "Failed to create driver"}, 500
+        
+    except Exception as e:
+        print(f"[SIGNUP ERROR] {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {"error": f"Registration failed: {str(e)}"}, 500
+
+
+# ✅ LOGIN ENDPOINT
+@app.post("/api/drivers/login", tags=["Truck Driver"])
+async def driver_login(request: DriverLoginRequest):
+    """Driver login"""
+    try:
+        from supabase import create_client
+        supabase = create_client(
+            os.environ.get("SUPABASE_URL"), 
+            os.environ.get("SUPABASE_ANON_KEY")
+        )
+        
+        # Query driver by email
+        print(f"[LOGIN] Attempting login for email: {request.email}")
+        
         drivers = supabase.table("drivers").select("*").eq("email", request.email).execute()
         
         if not drivers.data:
+            print(f"[LOGIN] Driver not found: {request.email}")
             return {"error": "Invalid credentials"}, 401
         
         driver = drivers.data[0]
         
         # Verify password
-        if driver["password_hash"] != hash_password(request.password):
+        password_hash = hash_password(request.password)
+        if driver["password_hash"] != password_hash:
+            print(f"[LOGIN] Wrong password for: {request.email}")
             return {"error": "Invalid credentials"}, 401
         
         # Generate token
         token = secrets.token_urlsafe(32)
+        
+        # Update token in database
         supabase.table("drivers").update({"token": token}).eq("id", driver["id"]).execute()
+        
+        print(f"[LOGIN] Success for driver: {driver['username']}")
         
         return {
             "success": True,
@@ -885,15 +980,20 @@ async def driver_login(request: DriverLoginRequest):
             "driver": {
                 "id": driver["id"],
                 "driver_id": driver.get("driver_id"),
+                "username": driver["username"],
                 "email": driver["email"],
                 "driver_name": driver["driver_name"],
-                "truck_id": driver["truck_id"],
+                "phone": driver.get("phone"),
+                "truck_id": driver.get("truck_id"),
                 "token": token
             }
         }
+    
     except Exception as e:
         print(f"[LOGIN ERROR] {str(e)}")
-        return {"error": "Login failed"}, 500
+        import traceback
+        traceback.print_exc()
+        return {"error": f"Login failed: {str(e)}"}, 500
 
 @app.post("/api/drivers/signup", tags=["Truck Driver"], response_model=Dict)
 async def driver_signup(request: DriverSignup):
