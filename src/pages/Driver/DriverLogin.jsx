@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import "./DriverLogin.scss";
 
 const DriverLogin = () => {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
   e.preventDefault();
@@ -41,12 +43,12 @@ const DriverLogin = () => {
 
         <form onSubmit={handleSubmit} className="driver-login-form">
           <label>
-            Email
+            Username
             <input
-              type="email"
-              placeholder="driver@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              placeholder="Enter your username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
             />
           </label>
@@ -66,6 +68,13 @@ const DriverLogin = () => {
             {loading ? "Logging in..." : "Login"}
           </button>
         </form>
+
+        <p style={{ marginTop: 16, textAlign: "center", fontSize: 14, color: "#6b7280" }}>
+          Don&apos;t have an account?{" "}
+          <a href="/driver/signup" style={{ color: "#3b82f6", fontWeight: 600 }}>
+            Sign up
+          </a>
+        </p>
       </div>
     </div>
   );

@@ -4,10 +4,9 @@ import DriverMap from "../../components/DriverMap";
 import axios from "axios";
 import "./DriverDashboard.scss";
 
-const DRIVER_ID = "40";
-
 const DriverDashboard = () => {
   const navigate = useNavigate();
+  const [driverId, setDriverId] = useState(null);
 
   const [isActive, setIsActive] = useState(false);
   const [location, setLocation] = useState(null);
@@ -24,20 +23,40 @@ const DriverDashboard = () => {
   const reconnectTimeoutRef = useRef(null);
 
   // ==============================
+  // 🔐 LOAD DRIVER ID FROM LOCALSTORAGE
+  // ==============================
+
+  useEffect(() => {
+    const storedDriverId = localStorage.getItem("driverId");
+    if (!storedDriverId) {
+      navigate("/driver/login");
+    } else {
+      setDriverId(storedDriverId);
+    }
+  }, [navigate]);
+
+  // ==============================
   // 🔥 WEBSOCKET
   // ==============================
 
   const connectWebSocket = useCallback(() => {
+    // Don't connect if driverId is not set
+    if (!driverId) {
+      console.log("Waiting for driver ID...");
+      return;
+    }
+
+    // Close existing connection if any
     if (socketRef.current) {
       socketRef.current.close();
     }
 
     const ws = new WebSocket(
-      `wss://server-production-cd13.up.railway.app/ws/notifications/${DRIVER_ID}`
+      `wss://server-production-cd13.up.railway.app/ws/notifications/${driverId}`
     );
 
     ws.onopen = () => {
-      console.log("WebSocket connected");
+      console.log(`WebSocket connected for driver ${driverId}`);
     };
 
     ws.onmessage = (event) => {
@@ -58,7 +77,9 @@ const DriverDashboard = () => {
 
     ws.onclose = () => {
       console.log("WebSocket disconnected. Reconnecting...");
-      reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000);
+      reconnectTimeoutRef.current = setTimeout(() => {
+        connectWebSocket();
+      }, 3000);
     };
 
     ws.onerror = (err) => {
@@ -67,28 +88,31 @@ const DriverDashboard = () => {
     };
 
     socketRef.current = ws;
-  }, []);
+  }, [driverId]);
 
   useEffect(() => {
+    if (!driverId) return; // Wait until driverId is loaded
+
     connectWebSocket();
 
     return () => {
       if (socketRef.current) socketRef.current.close();
-      if (reconnectTimeoutRef.current)
-        clearTimeout(reconnectTimeoutRef.current);
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
     };
-  }, [connectWebSocket]);
+  }, [connectWebSocket, driverId]);
 
   // ==============================
   // 📍 GPS TRACKING
   // ==============================
 
   const sendLocationToBackend = async (coords) => {
+    if (!driverId) return;
+
     try {
       await axios.post(
         "https://server-production-cd13.up.railway.app/truck/gps",
         {
-          vehicle_id: DRIVER_ID,
+          vehicle_id: driverId,
           lat: coords.latitude,
           lon: coords.longitude,
           speed_kmh: 50,
@@ -100,7 +124,7 @@ const DriverDashboard = () => {
         }
       );
 
-      console.log("Location sent");
+      console.log("Location sent successfully");
     } catch (err) {
       console.error("Location error:", err.response?.data || err.message);
     }
@@ -189,7 +213,22 @@ const DriverDashboard = () => {
   }, []);
 
   // ==============================
-  // UI
+  // ⏳ LOADING STATE
+  // ==============================
+
+  if (!driverId) {
+    return (
+      <div className="dashboard-container">
+        <div className="loading-state">
+          <h2>Loading...</h2>
+          <p>Redirecting to login...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ==============================
+  // 🎨 UI
   // ==============================
 
   return (
@@ -199,7 +238,12 @@ const DriverDashboard = () => {
           <h2 className="logo">FleetSync</h2>
           <div className="profile-section">
             <div className="profile-circle">D</div>
-            <button className="exit-btn" onClick={() => navigate("/")}>
+            <button className="exit-btn" onClick={() => {
+              localStorage.removeItem("driverId");
+              localStorage.removeItem("driverToken");
+              localStorage.removeItem("driverName");
+              navigate("/");
+            }}>
               Exit
             </button>
           </div>

@@ -48,6 +48,12 @@ class DriverLogin(BaseModel):
     username: str
     password: str
 
+class DriverSignup(BaseModel):
+    full_name: str
+    username: str
+    password: str
+    truck_id: Optional[str] = None
+
 class DriverResponse(BaseModel):
     id: str
     username: str
@@ -889,9 +895,31 @@ async def driver_login(request: DriverLoginRequest):
         print(f"[LOGIN ERROR] {str(e)}")
         return {"error": "Login failed"}, 500
 
-# ============================================================================
-# SYSTEM & TRACKING ROUTES
-# ============================================================================
+@app.post("/api/drivers/signup", tags=["Truck Driver"], response_model=Dict)
+async def driver_signup(request: DriverSignup):
+    """Truck driver signup"""
+    from fastapi import HTTPException
+    supabase = create_client(os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_ANON_KEY"))
+
+    normalized_username = request.username.lower()
+    existing = supabase.table("drivers").select("id").eq("username", normalized_username).execute()
+    if existing.data:
+        raise HTTPException(status_code=400, detail="Username already exists")
+
+    driver_id = str(uuid.uuid4())
+    password_hash = hash_password(request.password)
+
+    supabase.table("drivers").insert({
+        "driver_id": driver_id,
+        "driver_name": request.full_name,
+        "username": normalized_username,
+        "password_hash": password_hash,
+        "truck_id": request.truck_id,
+    }).execute()
+
+    return {"success": True, "message": "Signup successful"}
+
+
 from fastapi.responses import JSONResponse
 from typing import Optional
 from starlette.requests import Request
