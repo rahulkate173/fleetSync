@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import DriverMap from "../../components/DriverMap";
 import axios from "axios";
 import "./DriverDashboard.scss";
 
-const DRIVER_ID = "40"; // Replace with logged-in driver ID
+const DRIVER_ID = "40";
 
 const DriverDashboard = () => {
   const navigate = useNavigate();
+
   const [isActive, setIsActive] = useState(false);
   const [location, setLocation] = useState(null);
   const [stats, setStats] = useState({
@@ -17,37 +18,47 @@ const DriverDashboard = () => {
     distance: "—",
   });
   const [notifications, setNotifications] = useState([]);
+
   const intervalRef = useRef(null);
   const socketRef = useRef(null);
+  const reconnectTimeoutRef = useRef(null);
 
   // ==============================
-  // 🔥 WEBSOCKET CONNECTION
+  // 🔥 WEBSOCKET
   // ==============================
 
-  const connectWebSocket = () => {
-      const ws = new WebSocket(
-    `wss://server-production-cd13.up.railway.app/ws/notifications/${DRIVER_ID}`
-  );
+  const connectWebSocket = useCallback(() => {
+    if (socketRef.current) {
+      socketRef.current.close();
+    }
+
+    const ws = new WebSocket(
+      `wss://server-production-cd13.up.railway.app/ws/notifications/${DRIVER_ID}`
+    );
 
     ws.onopen = () => {
-      console.log("Connected to notification server");
+      console.log("WebSocket connected");
     };
 
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+      try {
+        const data = JSON.parse(event.data);
 
-      const newNotification = {
-        id: Date.now(),
-        message: data.message,
-        time: new Date().toLocaleTimeString(),
-      };
+        const newNotification = {
+          id: Date.now(),
+          message: data.message || "New notification",
+          time: new Date().toLocaleTimeString(),
+        };
 
-      setNotifications((prev) => [newNotification, ...prev]);
+        setNotifications((prev) => [newNotification, ...prev]);
+      } catch (err) {
+        console.error("Invalid WebSocket message:", err);
+      }
     };
 
     ws.onclose = () => {
       console.log("WebSocket disconnected. Reconnecting...");
-      setTimeout(connectWebSocket, 3000);
+      reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000);
     };
 
     ws.onerror = (err) => {
@@ -56,48 +67,48 @@ const DriverDashboard = () => {
     };
 
     socketRef.current = ws;
-  };
+  }, []);
 
   useEffect(() => {
     connectWebSocket();
 
     return () => {
       if (socketRef.current) socketRef.current.close();
+      if (reconnectTimeoutRef.current)
+        clearTimeout(reconnectTimeoutRef.current);
     };
-  }, []);
+  }, [connectWebSocket]);
 
   // ==============================
   // 📍 GPS TRACKING
   // ==============================
 
   const sendLocationToBackend = async (coords) => {
-  try {
-    const response = await axios.post(
-      "https://server-production-cd13.up.railway.app/truck/gps",
-      {
-        vehicle_id: DRIVER_ID,
-        lat: coords.latitude,
-        lon: coords.longitude,
-        speed_kmh: 50,
-        temperature: 0,
-        reference_id: "45",
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
+    try {
+      await axios.post(
+        "https://server-production-cd13.up.railway.app/truck/gps",
+        {
+          vehicle_id: DRIVER_ID,
+          lat: coords.latitude,
+          lon: coords.longitude,
+          speed_kmh: 50,
+          temperature: 0,
+          reference_id: "45",
         },
-      }
-    );
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
 
-    console.log("Location sent successfully:", response.data);
-  } catch (err) {
-    console.error("Error sending location:", err.response?.data || err.message);
-  }
-};
+      console.log("Location sent");
+    } catch (err) {
+      console.error("Location error:", err.response?.data || err.message);
+    }
+  };
 
   const startTracking = () => {
     if (!navigator.geolocation) {
-      alert("Geolocation not supported.");
+      alert("Geolocation not supported");
       return;
     }
 
@@ -115,34 +126,42 @@ const DriverDashboard = () => {
           });
         }, 30000);
       },
-      () => {
-        alert("GPS permission denied.");
-      }
+      () => alert("GPS permission denied")
     );
   };
 
   const stopTracking = () => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
   };
 
   const handleToggle = () => {
-    if (!isActive) startTracking();
-    else stopTracking();
+    if (isActive) stopTracking();
+    else startTracking();
 
-    setIsActive(!isActive);
+    setIsActive((prev) => !prev);
   };
 
   useEffect(() => {
     return () => stopTracking();
   }, []);
 
+  // ==============================
+  // 📊 FETCH STATS
+  // ==============================
+
   useEffect(() => {
     let cancelled = false;
 
     const fetchStats = async () => {
       try {
-        const res = await fetch("https://server-production-cd13.up.railway.app/analysis/fleet-stats");
+        const res = await fetch(
+          "https://server-production-cd13.up.railway.app/analysis/fleet-stats"
+        );
         if (!res.ok) return;
+
         const data = await res.json();
         if (cancelled) return;
 
@@ -150,13 +169,13 @@ const DriverDashboard = () => {
           ...prev,
           co2: data.totalCO2 ?? prev.co2,
           avgSpeed:
-            data.avgSpeed !== undefined && data.avgSpeed !== null
+            data.avgSpeed != null
               ? `${data.avgSpeed} km/h`
               : prev.avgSpeed,
           distance: data.totalDistance ?? prev.distance,
         }));
       } catch {
-        // ignore transient network errors
+        // ignore temporary network errors
       }
     };
 
@@ -195,17 +214,14 @@ const DriverDashboard = () => {
             <h3>Load</h3>
             <p>{stats.load}</p>
           </div>
-
           <div className="card">
             <h3>CO₂ Emission</h3>
             <p>{stats.co2}</p>
           </div>
-
           <div className="card">
             <h3>Avg Speed</h3>
             <p>{stats.avgSpeed}</p>
           </div>
-
           <div className="card">
             <h3>Distance Covered</h3>
             <p>{stats.distance}</p>
@@ -219,7 +235,6 @@ const DriverDashboard = () => {
           {isActive ? "Deactivate" : "Activate"}
         </button>
 
-        {/* 🔔 Notifications */}
         <div className="notification-section">
           <h2>Notifications</h2>
 
@@ -236,7 +251,7 @@ const DriverDashboard = () => {
         </div>
 
         <div className="driver-map-section">
-          <DriverMap />
+          <DriverMap location={location} />
         </div>
       </div>
     </div>
