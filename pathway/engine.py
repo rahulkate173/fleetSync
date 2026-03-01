@@ -118,6 +118,7 @@ def build_processing_pipeline():
             }
         )
         
+        
         # Process GPS data
         parsed_stream = kafka_stream.map(parse_message)
         filtered_stream = parsed_stream.filter(pw.this.is_not_null())
