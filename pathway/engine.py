@@ -80,7 +80,7 @@ def build_processing_pipeline():
         print("[PIPELINE] Building processing pipeline...")
         
         # Get Kafka config from environment
-        kafka_bootstrap = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'kafka:9092')
+        kafka_bootstrap = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
         kafka_topic = os.getenv('KAFKA_TOPIC', 'fleetsync-gps-3')
         kafka_group = os.getenv('KAFKA_GROUP_ID', 'pathway-fleetsync-gps')
         
