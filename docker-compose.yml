@@ -26,8 +26,8 @@ services:
       zookeeper:
         condition: service_healthy
     ports:
-      - "9092:9092"
-      - "29092:29092"
+      - "9092:9092"      # External access
+      - "29092:29092"    # Internal docker network
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -56,7 +56,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092     
       KAFKA_TOPIC: fleetsync-gps-3
       DATABASE_URL: sqlite:///./fleetsync.db
       SUPABASE_URL: ${SUPABASE_URL}
@@ -83,7 +83,7 @@ services:
     container_name: fleetsync-pathway
     platform: linux/amd64
     environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092    
       KAFKA_TOPIC: fleetsync-gps-3
       KAFKA_GROUP_ID: pathway-fleetsync-gps
       FLEETSYNC_SERVER_URL: http://server:8000
@@ -116,7 +116,7 @@ services:
     container_name: fleetsync-frontend
     platform: linux/amd64
     ports:
-      - "3000:80"
+      - "80:80"           # ✅ Standard HTTP port
     depends_on:
       - server
     networks:
