@@ -15,6 +15,7 @@ import UserLogin from './pages/user/UserLogin'
 import { ThemeProvider } from './context/ThemeContext'
 import DriverDashboard from './pages/Driver/DriverDashboard'
 import DriverLogin from './pages/Driver/DriverLogin'
+import DriverSignup from './pages/Driver/DriverSignup'
 // import ThemeToggle from "./components/ThemeToggle"
 // import React from "react";
 // import Home from "./pages/Home/Home";
@@ -44,7 +45,9 @@ const App = () => {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/driver" element={<DriverDashboard />} />
+          <Route path="/driver/dashboard" element={<DriverDashboard />} />
           <Route path="/driver/login" element={<DriverLogin />} />
+          <Route path="/driver/signup" element={<DriverSignup />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/shipment" element={<Shipment />} />
           <Route path="/analysis" element={<Analysis />} />
