@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
 TOPIC = os.getenv("KAFKA_TOPIC", "fleetsync-gps")
 
 

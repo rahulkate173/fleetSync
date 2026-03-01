@@ -12,7 +12,7 @@ load_dotenv()
 import sys
 sys.stdout.reconfigure(line_buffering=True)
 
-KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
 SERVER_URL = os.getenv("FLEETSYNC_SERVER_URL", "http://fleetSync:8000")
 TOPIC = os.getenv("KAFKA_TOPIC", "fleetsync-gps-3")
 
