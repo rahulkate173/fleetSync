@@ -24,7 +24,8 @@ const DriverDashboard = () => {
   // 🔥 WEBSOCKET CONNECTION
   // ==============================
 
-  const ws = new WebSocket(
+  const connectWebSocket = () => {
+      const ws = new WebSocket(
     `wss://server-production-cd13.up.railway.app/ws/notifications/${DRIVER_ID}`
   );
 
