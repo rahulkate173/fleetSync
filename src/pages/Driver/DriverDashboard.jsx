@@ -4,10 +4,9 @@ import DriverMap from "../../components/DriverMap";
 import axios from "axios";
 import "./DriverDashboard.scss";
 
-const DRIVER_ID = "40";
-
 const DriverDashboard = () => {
   const navigate = useNavigate();
+  const [driverId] = useState(() => localStorage.getItem("driver_id") || "");
 
   const [isActive, setIsActive] = useState(false);
   const [location, setLocation] = useState(null);
@@ -23,6 +22,12 @@ const DriverDashboard = () => {
   const socketRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
 
+  useEffect(() => {
+    if (!driverId) {
+      navigate("/driver/login");
+    }
+  }, [driverId, navigate]);
+
   // ==============================
   // 🔥 WEBSOCKET
   // ==============================
@@ -33,7 +38,7 @@ const DriverDashboard = () => {
     }
 
     const ws = new WebSocket(
-      `wss://server-production-cd13.up.railway.app/ws/notifications/${DRIVER_ID}`
+      `wss://server-production-cd13.up.railway.app/ws/notifications/${driverId}`
     );
 
     ws.onopen = () => {
@@ -67,7 +72,7 @@ const DriverDashboard = () => {
     };
 
     socketRef.current = ws;
-  }, []);
+  }, [driverId]);
 
   useEffect(() => {
     connectWebSocket();
@@ -88,7 +93,7 @@ const DriverDashboard = () => {
       await axios.post(
         "https://server-production-cd13.up.railway.app/truck/gps",
         {
-          vehicle_id: DRIVER_ID,
+          vehicle_id: driverId,
           lat: coords.latitude,
           lon: coords.longitude,
           speed_kmh: 50,
