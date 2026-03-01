@@ -8,24 +8,30 @@ const DriverLogin = () => {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  e.preventDefault();
+  setLoading(true);
 
-    try {
-      await axios.post("https://server-production-cd13.up.railway.app/api/drivers/login", {
-        email,
-        password,
-      });
-
-      alert("Driver logged in successfully");
-      // TODO: navigate to driver dashboard or store token as needed
-    } catch (error) {
-      console.error("Driver login failed", error);
-      alert("Login failed. Please check your credentials.");
-    } finally {
-      setLoading(false);
+  try {
+    const response = await axios.post(
+      "https://server-production-cd13.up.railway.app/api/drivers/login",
+      { email, password }
+    );
+    
+    if (response.data.success) {
+      // Store driver ID and token
+      localStorage.setItem('driverId', response.data.driver.id);
+      localStorage.setItem('driverToken', response.data.driver.token);
+      localStorage.setItem('driverName', response.data.driver.driver_name);
+      
+      // Navigate to dashboard
+      navigate('/driver/dashboard');
     }
-  };
+  } catch (error) {
+    alert("Login failed. Please check your credentials.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="driver-login-page">

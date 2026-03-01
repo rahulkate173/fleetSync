@@ -477,7 +477,12 @@ app = FastAPI(title="fleetSync API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://fleetsync-production-4ffc.up.railway.app",  # Add your production frontend
+        "https://server-production-cd13.up.railway.app"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -841,37 +846,48 @@ async def get_all_admin_alerts_for_driver(truck_id: str, db: Session = Depends(g
         "total_from_admin": len(driver_alerts),
         "last_update": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     }
+class DriverLoginRequest(BaseModel):
+    email: str
+    password: str
 
-@app.post("/api/drivers/login", tags=["Truck Driver"], response_model=Dict)
-async def driver_login(request: DriverLogin):
-    """Truck driver login"""
-    from supabase import create_client
-    supabase = create_client(os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_ANON_KEY"))
-    
-    drivers = supabase.table("drivers").select("*").eq("username", request.username).execute()
-    
-    if not drivers.data:
-        return {"error": "Invalid credentials"}, 401
-    
-    driver = drivers.data[0]
-    
-    if driver["password_hash"] != hash_password(request.password):
-        return {"error": "Invalid credentials"}, 401
-    
-    token = secrets.token_urlsafe(32)
-    supabase.table("drivers").update({"token": token}).eq("id", driver["id"]).execute()
-    
-    return {
-        "success": True,
-        "message": "Login successful",
-        "driver": {
-            "id": driver["driver_id"],
-            "username": driver["username"],
-            "driver_name": driver["driver_name"],
-            "truck_id": driver["truck_id"],
-            "token": token
+@app.post("/api/drivers/login", tags=["Truck Driver"])
+async def driver_login(request: DriverLoginRequest):
+    """Driver login - using EMAIL not username"""
+    try:
+        from supabase import create_client
+        supabase = create_client(os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_ANON_KEY"))
+        
+        # Query by email instead of username
+        drivers = supabase.table("drivers").select("*").eq("email", request.email).execute()
+        
+        if not drivers.data:
+            return {"error": "Invalid credentials"}, 401
+        
+        driver = drivers.data[0]
+        
+        # Verify password
+        if driver["password_hash"] != hash_password(request.password):
+            return {"error": "Invalid credentials"}, 401
+        
+        # Generate token
+        token = secrets.token_urlsafe(32)
+        supabase.table("drivers").update({"token": token}).eq("id", driver["id"]).execute()
+        
+        return {
+            "success": True,
+            "message": "Login successful",
+            "driver": {
+                "id": driver["id"],
+                "driver_id": driver.get("driver_id"),
+                "email": driver["email"],
+                "driver_name": driver["driver_name"],
+                "truck_id": driver["truck_id"],
+                "token": token
+            }
         }
-    }
+    except Exception as e:
+        print(f"[LOGIN ERROR] {str(e)}")
+        return {"error": "Login failed"}, 500
 
 # ============================================================================
 # SYSTEM & TRACKING ROUTES
@@ -2041,6 +2057,59 @@ async def admin_dashboard_ws(websocket: WebSocket, admin_id: str):
     except Exception as e:
         print(f"[ADMIN-WS] Error: {e}")
         admin_manager.disconnect(admin_id)
+
+from pydantic import BaseModel, EmailStr
+
+class DriverSignupRequest(BaseModel):
+    username: str
+    email: str
+    password: str
+    driver_name: str
+    phone: str
+    truck_id: str
+
+@app.post("/api/drivers/signup", tags=["Truck Driver"])
+async def driver_signup(request: DriverSignupRequest):
+    """Driver registration endpoint"""
+    try:
+        from supabase import create_client
+        supabase = create_client(os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_ANON_KEY"))
+        
+        # Check if driver already exists
+        existing = supabase.table("drivers").select("*").eq("username", request.username).execute()
+        if existing.data:
+            return {"error": "Username already exists"}, 400
+        
+        # Hash password
+        password_hash = hash_password(request.password)
+        
+        # Create driver record
+        driver_data = {
+            "username": request.username,
+            "email": request.email,
+            "password_hash": password_hash,
+            "driver_name": request.driver_name,
+            "phone": request.phone,
+            "truck_id": request.truck_id,
+            "is_active": True,
+            "created_at": datetime.utcnow().isoformat()
+        }
+        
+        result = supabase.table("drivers").insert(driver_data).execute()
+        
+        if result.data:
+            return {
+                "success": True,
+                "message": "Driver registered successfully",
+                "driver_id": result.data[0].get("id")
+            }
+        else:
+            return {"error": "Registration failed"}, 500
+            
+    except Exception as e:
+        print(f"[SIGNUP ERROR] {str(e)}")
+        return {"error": "Registration error"}, 500
+
 
 
 if __name__ == "__main__":
