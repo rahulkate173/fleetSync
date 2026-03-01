@@ -11,8 +11,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
 TOPIC = os.getenv("KAFKA_TOPIC", "fleetsync-gps")
+if not KAFKA_BOOTSTRAP:
+    raise ValueError("KAFKA_BOOTSTRAP_SERVERS not set")
 
 
 async def produce_gps(vehicle_id: str, lat: float, lon: float, speed_kmh: float = 0, temperature: float | None = None, reference_id: str | None = None):
