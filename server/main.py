@@ -721,20 +721,33 @@ async def driver_notifications(websocket: WebSocket, driver_id: str):
 
 @app.post("/truck/gps", tags=["Truck Driver"])
 async def truck_gps(data: TruckGpsInput):
-    """Send GPS data to Kafka"""
-    if producer is None:
-        return {"error": "Kafka producer not available"}, 503
+    """Send GPS data to Kafka with graceful fallback"""
+    print(f"[TRUCK/GPS] Received: vehicle {data.vehicle_id}")
     
-    try:
-        print(f"[KAFKA] Attempting: vehicle {data.vehicle_id}")
-        await _produce_to_kafka(
-            data.vehicle_id, data.lat, data.lon, data.speed_kmh, data.temperature, data.reference_id
-        )
-        print(f"[KAFKA] SUCCESS: vehicle {data.vehicle_id}")
-        return {"status": "sent to Kafka"}
-    except Exception as e:
-        print(f"[KAFKA] ERROR: {str(e)}")
-        return {"error": f"Kafka failed: {str(e)}"}, 503
+    # Try Kafka producer first
+    if producer is not None:
+        try:
+            print(f"[KAFKA] Attempting: vehicle {data.vehicle_id}")
+            await _produce_to_kafka(
+                data.vehicle_id, data.lat, data.lon, data.speed_kmh, data.temperature, data.reference_id
+            )
+            print(f"[KAFKA] SUCCESS: vehicle {data.vehicle_id}")
+            return {"status": "sent to Kafka", "vehicle_id": data.vehicle_id}
+        except Exception as e:
+            print(f"[KAFKA] ERROR: {str(e)}")
+    
+    # FALLBACK: Store in fleet_state (like /ingest/pathway)
+    print(f"[FALLBACK] Stored in-memory: {data.vehicle_id}")
+    global fleet_state  # Your global state dict
+    fleet_state[data.vehicle_id] = {
+        "lat": data.lat,
+        "lon": data.lon, 
+        "speed_kmh": data.speed_kmh,
+        "temperature": data.temperature,
+        "timestamp": datetime.utcnow().isoformat() + "Z"
+    }
+    
+    return {"status": "received", "vehicle_id": data.vehicle_id, "method": "in-memory"}
 
 @app.get("/alerts/history", tags=["Truck Driver"])
 async def get_driver_alert_history(truck_id: str, db: Session = Depends(get_db)):
