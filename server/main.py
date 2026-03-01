@@ -2217,7 +2217,7 @@ async def driver_signup(request: DriverSignupRequest):
         
         print(f"[SIGNUP] Inserting driver: {request.username}")
         
-        result = supabase.table("drivers").insert(driver_data).execute()
+        result = supabase.table("drivers").insert(driver_data).select().execute()
         
         if result.data:
             created_driver = result.data[0]
